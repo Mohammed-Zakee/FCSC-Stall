@@ -1,16 +1,18 @@
-/* public/css/public.css - Public Interactive Map Styles */
+/* public/css/public.css - Sensory Interactive Public Map Styles */
 body {
   overflow: hidden;
   height: 100vh;
   width: 100vw;
   display: flex;
   flex-direction: column;
+  background-color: #0f172a;
 }
 
 /* Public Header */
 .public-header {
   height: 64px;
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
@@ -27,28 +29,30 @@ body {
 }
 
 .brand-logo {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-sm);
-  background: linear-gradient(135deg, #2563eb, #4f46e5);
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #ffffff;
   font-weight: 800;
-  font-size: 18px;
+  font-size: 20px;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
 .brand-title {
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--text-main);
+  letter-spacing: -0.3px;
 }
 
 .brand-subtitle {
   font-size: 11px;
   color: var(--text-muted);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 /* Search and Filter Section */
@@ -60,25 +64,25 @@ body {
 
 .search-box {
   position: relative;
-  width: 260px;
+  width: 250px;
 }
 
 .search-box input {
   width: 100%;
-  padding: 7px 12px 7px 34px;
+  padding: 8px 12px 8px 34px;
   font-size: 13px;
   border: 1px solid var(--border);
   border-radius: var(--radius-full);
   background: #f8fafc;
   outline: none;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .search-box input:focus {
   background: #ffffff;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-  width: 300px;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+  width: 290px;
 }
 
 .search-icon {
@@ -97,30 +101,33 @@ body {
   gap: 6px;
   overflow-x: auto;
   padding: 4px 0;
-  max-width: 450px;
+  max-width: 480px;
 }
 
 .category-chip {
-  padding: 5px 12px;
+  padding: 6px 12px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   border-radius: var(--radius-full);
   background: #f1f5f9;
-  color: var(--text-muted);
+  color: #475569;
   border: 1px solid transparent;
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
+  user-select: none;
 }
 
 .category-chip:hover {
   background: #e2e8f0;
   color: var(--text-main);
+  transform: translateY(-1px);
 }
 
 .category-chip.active {
-  background: var(--primary);
+  background: #0f172a;
   color: #ffffff;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.3);
 }
 
 /* Map Viewport Area */
@@ -128,9 +135,11 @@ body {
   flex: 1;
   position: relative;
   overflow: hidden;
-  background-color: #cbd5e1;
-  background-image: radial-gradient(#94a3b8 1px, transparent 1px);
-  background-size: 20px 20px;
+  background-color: #0f172a;
+  background-image: 
+    radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+    radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 24px 24px, 12px 12px;
   cursor: grab;
   user-select: none;
 }
@@ -151,72 +160,50 @@ body {
 .map-image-wrapper {
   position: relative;
   display: inline-block;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-  border-radius: 8px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+  border-radius: 12px;
   background: #ffffff;
 }
 
-.map-image-wrapper img, .map-image-wrapper svg {
+.map-image-wrapper img {
   display: block;
   max-width: none;
   pointer-events: none;
+  border-radius: 12px;
 }
 
-/* Zones Layer */
-.zones-overlay-layer {
+/* Zones & Stalls Overlay Layers */
+.zones-overlay-layer, .stalls-overlay-layer {
   position: absolute;
   inset: 0;
   pointer-events: none;
 }
 
-/* Interactive Zone Element */
+/* Interactive Zone Perimeter Overlay */
 .public-zone-hotspot {
   position: absolute;
   pointer-events: auto;
   cursor: pointer;
-  border-radius: 8px;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  border-radius: 12px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 6px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border: 2px solid rgba(255, 255, 255, 0.8);
-}
-
-.public-zone-hotspot.shape-circle {
-  border-radius: 50% !important;
-}
-
-.public-zone-hotspot.shape-rounded_rect {
-  border-radius: 20px !important;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 8px;
+  box-sizing: border-box;
+  border: 2px dashed rgba(59, 130, 246, 0.6);
+  background: rgba(59, 130, 246, 0.04);
 }
 
 .public-zone-hotspot:hover {
-  transform: scale(1.03);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-  border-color: #ffffff;
-  z-index: 50;
-}
-
-.public-zone-hotspot:active {
-  transform: scale(0.98);
-}
-
-.public-zone-hotspot.highlighted {
-  animation: hotspot-glow 1.2s infinite alternate;
-  z-index: 60;
-}
-
-@keyframes hotspot-glow {
-  0% { box-shadow: 0 0 8px 2px var(--primary); transform: scale(1.02); }
-  100% { box-shadow: 0 0 22px 6px var(--primary); transform: scale(1.06); }
+  background: rgba(59, 130, 246, 0.12);
+  border-color: #2563eb;
+  border-style: solid;
 }
 
 .zone-label-badge {
-  background: rgba(15, 23, 42, 0.88);
+  background: rgba(15, 23, 42, 0.9);
   color: #ffffff;
   font-size: 11px;
   font-weight: 700;
@@ -227,17 +214,105 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
   backdrop-filter: blur(4px);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
 }
 
-.zone-stalls-count {
-  font-size: 10px;
-  color: #ffffff;
-  background: rgba(0, 0, 0, 0.4);
-  padding: 2px 6px;
-  border-radius: var(--radius-full);
-  margin-top: 4px;
+/* ========================================================= */
+/* SENSORY DIRECT ON-MAP STALLS & BOOTHS                     */
+/* ========================================================= */
+.public-stall-hotspot {
+  position: absolute;
+  pointer-events: auto;
+  cursor: pointer;
+  border-radius: 8px;
+  box-sizing: border-box;
+  background: #ffffff;
+  border: 2px solid #3b82f6;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 4px;
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s ease, border-color 0.18s ease;
+  user-select: none;
+  z-index: 20;
+}
+
+.public-stall-hotspot.shape-circle {
+  border-radius: 50% !important;
+}
+
+.public-stall-hotspot.shape-rounded_rect {
+  border-radius: 14px !important;
+}
+
+/* Status Variations */
+.public-stall-hotspot.status-available {
+  border-color: #10b981;
+  background: linear-gradient(135deg, #ffffff, #ecfdf5);
+}
+
+.public-stall-hotspot.status-booked {
+  border-color: #2563eb;
+  background: linear-gradient(135deg, #ffffff, #eff6ff);
+}
+
+.public-stall-hotspot.status-reserved {
+  border-color: #f59e0b;
+  background: linear-gradient(135deg, #ffffff, #fffbeb);
+}
+
+/* Hover Sensory Dynamics */
+.public-stall-hotspot:hover {
+  transform: scale(1.12) translateY(-2px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  z-index: 80;
+  border-width: 2.5px;
+}
+
+.public-stall-hotspot:active {
+  transform: scale(0.96);
+}
+
+.public-stall-hotspot.highlighted {
+  animation: stall-pulse 1.2s infinite alternate;
+  z-index: 90;
+}
+
+@keyframes stall-pulse {
+  0% { transform: scale(1.08); box-shadow: 0 0 10px 2px var(--primary); }
+  100% { transform: scale(1.22); box-shadow: 0 0 26px 8px var(--primary); }
+}
+
+.stall-number-tag {
+  font-family: monospace;
+  font-size: 11px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.1;
+}
+
+.stall-company-sub {
+  font-size: 9px;
   font-weight: 600;
+  color: #475569;
+  max-width: 95%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+
+.stall-available-indicator {
+  font-size: 8px;
+  font-weight: 700;
+  color: #059669;
+  background: #d1fae5;
+  padding: 1px 4px;
+  border-radius: 4px;
+  margin-top: 2px;
 }
 
 /* Floating Map Controls */
@@ -252,26 +327,28 @@ body {
 }
 
 .map-control-btn {
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-md);
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
   border: 1px solid var(--border);
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   color: var(--text-main);
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 700;
   transition: all 0.15s ease;
 }
 
 .map-control-btn:hover {
-  background: #f8fafc;
+  background: #ffffff;
   color: var(--primary);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
 }
 
 /* Bottom Information Floating Card */
@@ -279,75 +356,45 @@ body {
   position: absolute;
   bottom: 24px;
   left: 24px;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(8px);
-  border: 1px solid var(--border);
-  padding: 8px 16px;
+  background: rgba(15, 23, 42, 0.9);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 10px 18px;
   border-radius: var(--radius-full);
-  box-shadow: var(--shadow-md);
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-muted);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  font-size: 13px;
+  font-weight: 600;
+  color: #f8fafc;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   z-index: 80;
 }
 
-/* Public Stall Modal / Drawer Styles */
-.stall-item-card {
-  background: #f8fafc;
-  border: 1px solid var(--border);
+/* Single Stall Details Modal Cards */
+.stall-detail-hero {
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
   border-radius: var(--radius-md);
-  padding: 14px;
-  margin-bottom: 12px;
-  transition: all 0.15s ease;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.stall-item-card:hover {
-  border-color: var(--primary-border);
-  background: #ffffff;
-  box-shadow: var(--shadow-sm);
-}
-
-.stall-header-row {
+  padding: 20px;
+  border: 1px solid var(--primary-border);
+  margin-bottom: 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.stall-badge {
+.stall-hero-number {
   font-family: monospace;
-  font-size: 13px;
-  font-weight: 700;
-  background: #0f172a;
-  color: #ffffff;
-  padding: 2px 8px;
-  border-radius: 4px;
-}
-
-.stall-company-name {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text-main);
-}
-
-.stall-category-badge {
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: var(--radius-full);
-  background: var(--primary-light);
+  font-size: 22px;
+  font-weight: 800;
   color: var(--primary);
-  font-weight: 600;
 }
 
-.stall-public-desc {
-  font-size: 13px;
-  color: var(--text-muted);
-  line-height: 1.4;
+.stall-hero-company {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-top: 4px;
 }
 
 /* Mobile Responsiveness */
@@ -371,7 +418,7 @@ body {
     width: 100%;
   }
   .category-bar {
-    display: none; /* Collapsed on mobile, handled in bottom sheet */
+    display: none;
   }
   .map-info-pill {
     display: none;

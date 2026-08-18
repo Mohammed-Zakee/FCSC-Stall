@@ -1,4 +1,4 @@
-// public/js/admin.js - SaaS Admin Dashboard & Figma-style Map Editor Engine
+// public/js/admin.js - SaaS Admin Dashboard & Sensory Map Editor Engine
 (function() {
   'use strict';
 
@@ -8,6 +8,7 @@
   let allZones = [];
   let allStalls = [];
   let selectedZoneId = null;
+  let selectedStallId = null;
   let isEditingStallId = null;
 
   // Editor Pan & Zoom State
@@ -17,15 +18,16 @@
   let isEditorPanning = false;
   let panStartX = 0;
   let panStartY = 0;
-  let currentTool = 'select'; // select, pan, add_rect, add_rounded, add_circle
+  let currentTool = 'select'; // select, pan, add_stall, add_rect, add_circle
 
-  // Zone Drag & Resize Interaction State
-  let isDraggingZone = false;
-  let isResizingZone = false;
+  // Drag & Resize Interaction State
+  let isDraggingItem = false;
+  let isResizingItem = false;
+  let dragItemType = null; // 'zone' | 'stall'
   let activeResizeHandle = null;
   let dragStartX = 0;
   let dragStartY = 0;
-  let initialZoneCoords = null;
+  let initialItemCoords = null;
 
   // DOM Elements
   const navItems = document.querySelectorAll('.nav-item');
@@ -45,10 +47,14 @@
   const editorMapWrapper = document.getElementById('editor-map-wrapper');
   const editorMapImg = document.getElementById('editor-map-img');
   const editorZonesLayer = document.getElementById('editor-zones-layer');
+  const editorStallsLayer = document.getElementById('editor-stalls-layer');
   const inspectorEmptyState = document.getElementById('inspector-empty-state');
-  const inspectorForm = document.getElementById('inspector-form');
+  const inspectorZoneForm = document.getElementById('inspector-zone-form');
+  const inspectorStallForm = document.getElementById('inspector-stall-form');
+  const inspectorTitle = document.getElementById('inspector-title');
+  const inspectorBadge = document.getElementById('inspector-badge');
 
-  // Inspector Form Inputs
+  // Zone Inspector Form Inputs
   const propZoneName = document.getElementById('prop-zone-name');
   const propZoneShape = document.getElementById('prop-zone-shape');
   const propZoneColor = document.getElementById('prop-zone-color');
@@ -62,6 +68,27 @@
   const btnSaveZoneProps = document.getElementById('btn-save-zone-props');
   const btnDuplicateZone = document.getElementById('btn-duplicate-zone');
   const btnDeleteZone = document.getElementById('btn-delete-zone');
+
+  // Stall Inspector Form Inputs
+  const propStallNumber = document.getElementById('prop-stall-number');
+  const propStallZone = document.getElementById('prop-stall-zone');
+  const propStallCompany = document.getElementById('prop-stall-company');
+  const propStallCategory = document.getElementById('prop-stall-category');
+  const propStallBookingStatus = document.getElementById('prop-stall-booking-status');
+  const propStallPaymentStatus = document.getElementById('prop-stall-payment-status');
+  const propStallAmount = document.getElementById('prop-stall-amount');
+  const propStallX = document.getElementById('prop-stall-x');
+  const propStallY = document.getElementById('prop-stall-y');
+  const propStallW = document.getElementById('prop-stall-w');
+  const propStallH = document.getElementById('prop-stall-h');
+  const propStallPublic = document.getElementById('prop-stall-public');
+  const propStallDesc = document.getElementById('prop-stall-desc');
+  const propStallContact = document.getElementById('prop-stall-contact');
+  const propStallPhone = document.getElementById('prop-stall-phone');
+  const propStallEmail = document.getElementById('prop-stall-email');
+  const btnSaveStallProps = document.getElementById('btn-save-stall-props');
+  const btnDuplicateStallEditor = document.getElementById('btn-duplicate-stall-editor');
+  const btnDeleteStallEditor = document.getElementById('btn-delete-stall-editor');
 
   // Stall Modal & Elements
   const stallModal = document.getElementById('stall-modal');
@@ -122,7 +149,6 @@
         sidebarUserEmail.textContent = currentUser.email || 'admin@event.com';
         userAvatarInitials.textContent = (currentUser.name || 'AD').substring(0, 2).toUpperCase();
         
-        // Initial Data Load
         await loadInitialData();
       } else {
         window.location.href = '/login';
@@ -142,7 +168,6 @@
     ]);
   }
 
-  // Logout
   btnLogout.addEventListener('click', async () => {
     try {
       await fetch('/api/admin/auth/logout', { method: 'POST' });
@@ -150,7 +175,6 @@
     window.location.href = '/login';
   });
 
-  // Navigation Switching
   window.switchTab = function(tabId) {
     navItems.forEach(item => {
       if (item.dataset.tab === tabId) item.classList.add('active');
@@ -183,7 +207,6 @@
     });
   });
 
-  // Public Preview Modal
   btnPreviewPublic.addEventListener('click', () => {
     const iframe = document.getElementById('preview-iframe');
     iframe.src = '/map?t=' + Date.now();
@@ -214,7 +237,6 @@
       document.getElementById('stat-total-zones').textContent = stats.zones.total;
       document.getElementById('stat-zones-sub').textContent = `${stats.zones.public} Public · ${stats.zones.private} Internal Only`;
 
-      // Render recent activity list
       const activityContainer = document.getElementById('dashboard-recent-activity');
       if (!stats.recentActivity || stats.recentActivity.length === 0) {
         activityContainer.innerHTML = '<div style="color: var(--text-muted); font-size: 13px;">No recent activity.</div>';
@@ -234,7 +256,7 @@
     }
   }
 
-  // =================== 2. FIGMA-STYLE MAP EDITOR ===================
+  // =================== 2. FIGMA-STYLE MAP & STALL EDITOR ===================
   function updateEditorTransform() {
     editorStage.style.transform = `translate(${editorPanX}px, ${editorPanY}px) scale(${editorScale})`;
   }
@@ -257,12 +279,11 @@
   }
 
   function initEditorControls() {
-    // Toolbar Tool Buttons
     const toolBtns = {
       'tool-select': 'select',
       'tool-pan': 'pan',
+      'tool-add-stall': 'add_stall',
       'tool-add-rect': 'add_rect',
-      'tool-add-rounded': 'add_rounded',
       'tool-add-circle': 'add_circle'
     };
 
@@ -275,18 +296,18 @@
         currentTool = tool;
 
         editorCanvas.className = 'editor-canvas-container';
-        if (tool === 'pan') editorCanvas.classList.add('tool-pan');
-        else if (tool.startsWith('add_')) {
-          editorCanvas.classList.add('tool-draw');
-          // Quick add zone in center of viewport
+        if (tool === 'pan') {
+          editorCanvas.classList.add('tool-pan');
+        } else if (tool === 'add_stall') {
+          createStallAtCenter();
+          document.getElementById('tool-select').click();
+        } else if (tool.startsWith('add_')) {
           createZoneAtCenter(tool.replace('add_', ''));
-          // Switch back to select tool
           document.getElementById('tool-select').click();
         }
       });
     });
 
-    // Zoom Buttons
     document.getElementById('btn-editor-zoom-in').addEventListener('click', () => {
       editorScale = Math.min(editorScale * 1.2, 4.0);
       updateEditorTransform();
@@ -303,11 +324,11 @@
       updateEditorTransform();
     });
 
-    // Canvas Pan via Mouse Drag (when pan tool or spacebar held)
+    // Canvas Pan & Deselect
     editorCanvas.addEventListener('mousedown', (e) => {
       if (currentTool === 'pan' || e.button === 1 || e.target === editorCanvas || e.target === editorStage) {
-        if (!e.target.closest('.editor-zone-box')) {
-          deselectZone();
+        if (!e.target.closest('.editor-zone-box') && !e.target.closest('.editor-stall-box')) {
+          deselectAll();
         }
         isEditorPanning = true;
         panStartX = e.clientX - editorPanX;
@@ -321,10 +342,10 @@
         editorPanX = e.clientX - panStartX;
         editorPanY = e.clientY - panStartY;
         updateEditorTransform();
-      } else if (isDraggingZone && selectedZoneId) {
-        handleZoneDrag(e);
-      } else if (isResizingZone && selectedZoneId) {
-        handleZoneResize(e);
+      } else if (isDraggingItem) {
+        handleItemDrag(e);
+      } else if (isResizingItem) {
+        handleItemResize(e);
       }
     });
 
@@ -333,18 +354,20 @@
         isEditorPanning = false;
         editorCanvas.classList.remove('is-dragging');
       }
-      if (isDraggingZone || isResizingZone) {
-        isDraggingZone = false;
-        isResizingZone = false;
+      if (isDraggingItem || isResizingItem) {
+        isDraggingItem = false;
+        isResizingItem = false;
         activeResizeHandle = null;
-        // Auto-save zone coords after transform
-        if (selectedZoneId) {
+        
+        if (dragItemType === 'zone' && selectedZoneId) {
           await saveZoneProperties(false);
+        } else if (dragItemType === 'stall' && selectedStallId) {
+          await saveStallProperties(false);
         }
       }
     });
 
-    // Wheel Zoom centered on cursor
+    // Wheel Zoom
     editorCanvas.addEventListener('wheel', (e) => {
       e.preventDefault();
       const rect = editorCanvas.getBoundingClientRect();
@@ -360,9 +383,21 @@
 
       updateEditorTransform();
     }, { passive: false });
+
+    // Keyboard Delete Shortcut
+    window.addEventListener('keydown', (e) => {
+      if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedStallId) {
+          btnDeleteStallEditor.click();
+        } else if (selectedZoneId) {
+          btnDeleteZone.click();
+        }
+      }
+    });
   }
 
-  // Load Maps and Render Zones in Canvas
+  // Load Maps, Zones, Stalls in Editor
   async function loadMapsAndZones() {
     try {
       const res = await fetch('/api/admin/maps');
@@ -377,42 +412,51 @@
         fitEditorToScreen();
       };
 
-      const zonesRes = await fetch('/api/admin/zones');
+      const [zonesRes, stallsRes] = await Promise.all([
+        fetch('/api/admin/zones'),
+        fetch('/api/admin/stalls')
+      ]);
+
       const zonesJson = await zonesRes.json();
+      const stallsJson = await stallsRes.json();
+
       if (zonesJson.success) {
         allZones = zonesJson.zones || [];
         renderEditorZones();
         renderZonesOverviewTable();
         populateZoneSelectDropdowns();
       }
+
+      if (stallsJson.success) {
+        allStalls = stallsJson.stalls || [];
+        renderEditorStalls();
+      }
     } catch (err) {
-      console.error('[Admin Maps/Zones Load Error]', err);
+      console.error('[Admin Load Error]', err);
     }
   }
 
-  // Render Zones in Canvas Layer
+  // Render Zones in Canvas
   function renderEditorZones() {
     editorZonesLayer.innerHTML = '';
 
     allZones.forEach(zone => {
-      const isSelected = zone.id === selectedZoneId;
+      const isSelected = (zone.id === selectedZoneId && dragItemType === 'zone');
       const box = document.createElement('div');
       box.className = `editor-zone-box shape-${zone.shape || 'rect'} ${zone.is_public ? '' : 'is-private'} ${isSelected ? 'selected' : ''}`;
       box.id = `admin-zone-box-${zone.id}`;
-      box.dataset.id = zone.id;
       
       box.style.left = `${zone.x}%`;
       box.style.top = `${zone.y}%`;
       box.style.width = `${zone.width}%`;
       box.style.height = `${zone.height}%`;
-      box.style.backgroundColor = `${zone.color || '#3b82f6'}33`;
       box.style.borderColor = zone.color || '#3b82f6';
+      box.style.backgroundColor = `${zone.color || '#3b82f6'}18`;
 
       box.innerHTML = `
         <div class="editor-zone-tag" style="border-left: 3px solid ${zone.color || '#3b82f6'};">
           ${escapeHtml(zone.name)} ${zone.is_public ? '' : '🔒'}
         </div>
-        <!-- 8 Resize Handles -->
         <div class="resize-handle handle-nw" data-handle="nw"></div>
         <div class="resize-handle handle-n" data-handle="n"></div>
         <div class="resize-handle handle-ne" data-handle="ne"></div>
@@ -423,26 +467,25 @@
         <div class="resize-handle handle-w" data-handle="w"></div>
       `;
 
-      // Zone Click & Drag Handlers
       box.addEventListener('mousedown', (e) => {
         if (currentTool === 'pan') return;
         e.stopPropagation();
 
         const handle = e.target.dataset.handle;
         if (handle) {
-          // Resize interaction
-          isResizingZone = true;
+          isResizingItem = true;
+          dragItemType = 'zone';
           activeResizeHandle = handle;
           dragStartX = e.clientX;
           dragStartY = e.clientY;
-          initialZoneCoords = { ...zone };
+          initialItemCoords = { ...zone };
         } else {
-          // Select & Drag interaction
           selectZone(zone.id);
-          isDraggingZone = true;
+          isDraggingItem = true;
+          dragItemType = 'zone';
           dragStartX = e.clientX;
           dragStartY = e.clientY;
-          initialZoneCoords = { ...zone };
+          initialItemCoords = { ...zone };
         }
       });
 
@@ -450,8 +493,65 @@
     });
   }
 
-  // Handle Drag Move (Percentage Coordinates)
-  function handleZoneDrag(e) {
+  // Render Direct Stalls / Booths in Canvas
+  function renderEditorStalls() {
+    editorStallsLayer.innerHTML = '';
+
+    allStalls.forEach(stall => {
+      if (stall.x === null || stall.x === undefined) return;
+
+      const isSelected = (stall.id === selectedStallId && dragItemType === 'stall');
+      const box = document.createElement('div');
+      const statusClass = (stall.booking_status === 'Available') ? 'status-available' : (stall.booking_status === 'Reserved') ? 'status-reserved' : '';
+      box.className = `editor-stall-box ${statusClass} ${isSelected ? 'selected' : ''}`;
+      box.id = `admin-stall-box-${stall.id}`;
+
+      box.style.left = `${stall.x}%`;
+      box.style.top = `${stall.y}%`;
+      box.style.width = `${stall.width || 7.0}%`;
+      box.style.height = `${stall.height || 7.0}%`;
+
+      box.innerHTML = `
+        <div class="stall-tag-num">${escapeHtml(stall.stall_number)}</div>
+        <div class="stall-tag-comp">${escapeHtml(stall.company_name || (stall.booking_status === 'Available' ? 'Available' : ''))}</div>
+        <div class="resize-handle handle-nw" data-handle="nw"></div>
+        <div class="resize-handle handle-n" data-handle="n"></div>
+        <div class="resize-handle handle-ne" data-handle="ne"></div>
+        <div class="resize-handle handle-e" data-handle="e"></div>
+        <div class="resize-handle handle-se" data-handle="se"></div>
+        <div class="resize-handle handle-s" data-handle="s"></div>
+        <div class="resize-handle handle-sw" data-handle="sw"></div>
+        <div class="resize-handle handle-w" data-handle="w"></div>
+      `;
+
+      box.addEventListener('mousedown', (e) => {
+        if (currentTool === 'pan') return;
+        e.stopPropagation();
+
+        const handle = e.target.dataset.handle;
+        if (handle) {
+          isResizingItem = true;
+          dragItemType = 'stall';
+          activeResizeHandle = handle;
+          dragStartX = e.clientX;
+          dragStartY = e.clientY;
+          initialItemCoords = { ...stall };
+        } else {
+          selectStall(stall.id);
+          isDraggingItem = true;
+          dragItemType = 'stall';
+          dragStartX = e.clientX;
+          dragStartY = e.clientY;
+          initialItemCoords = { ...stall };
+        }
+      });
+
+      editorStallsLayer.appendChild(box);
+    });
+  }
+
+  // Drag Item (Zone or Stall)
+  function handleItemDrag(e) {
     const mapW = editorMapImg.clientWidth;
     const mapH = editorMapImg.clientHeight;
     if (!mapW || !mapH) return;
@@ -462,29 +562,43 @@
     const deltaPctX = (deltaPxX / mapW) * 100;
     const deltaPctY = (deltaPxY / mapH) * 100;
 
-    let newX = Math.max(0, Math.min(100 - initialZoneCoords.width, initialZoneCoords.x + deltaPctX));
-    let newY = Math.max(0, Math.min(100 - initialZoneCoords.height, initialZoneCoords.y + deltaPctY));
+    let newX = Math.max(0, Math.min(100 - initialItemCoords.width, initialItemCoords.x + deltaPctX));
+    let newY = Math.max(0, Math.min(100 - initialItemCoords.height, initialItemCoords.y + deltaPctY));
 
     newX = Math.round(newX * 10) / 10;
     newY = Math.round(newY * 10) / 10;
 
-    const zone = allZones.find(z => z.id === selectedZoneId);
-    if (zone) {
-      zone.x = newX;
-      zone.y = newY;
-      propZoneX.value = newX;
-      propZoneY.value = newY;
-
-      const el = document.getElementById(`admin-zone-box-${zone.id}`);
-      if (el) {
-        el.style.left = `${newX}%`;
-        el.style.top = `${newY}%`;
+    if (dragItemType === 'zone') {
+      const zone = allZones.find(z => z.id === selectedZoneId);
+      if (zone) {
+        zone.x = newX;
+        zone.y = newY;
+        propZoneX.value = newX;
+        propZoneY.value = newY;
+        const el = document.getElementById(`admin-zone-box-${zone.id}`);
+        if (el) {
+          el.style.left = `${newX}%`;
+          el.style.top = `${newY}%`;
+        }
+      }
+    } else if (dragItemType === 'stall') {
+      const stall = allStalls.find(s => s.id === selectedStallId);
+      if (stall) {
+        stall.x = newX;
+        stall.y = newY;
+        propStallX.value = newX;
+        propStallY.value = newY;
+        const el = document.getElementById(`admin-stall-box-${stall.id}`);
+        if (el) {
+          el.style.left = `${newX}%`;
+          el.style.top = `${newY}%`;
+        }
       }
     }
   }
 
-  // Handle 8-Point Resize (Percentage Dimensions)
-  function handleZoneResize(e) {
+  // Resize Item (Zone or Stall)
+  function handleItemResize(e) {
     const mapW = editorMapImg.clientWidth;
     const mapH = editorMapImg.clientHeight;
     if (!mapW || !mapH) return;
@@ -495,46 +609,46 @@
     const deltaPctX = (deltaPxX / mapW) * 100;
     const deltaPctY = (deltaPxY / mapH) * 100;
 
-    const z = initialZoneCoords;
-    let newX = z.x;
-    let newY = z.y;
-    let newW = z.width;
-    let newH = z.height;
+    const item = initialItemCoords;
+    let newX = item.x;
+    let newY = item.y;
+    let newW = item.width;
+    let newH = item.height;
 
     switch (activeResizeHandle) {
       case 'se':
-        newW = Math.max(2, z.width + deltaPctX);
-        newH = Math.max(2, z.height + deltaPctY);
+        newW = Math.max(2, item.width + deltaPctX);
+        newH = Math.max(2, item.height + deltaPctY);
         break;
       case 'e':
-        newW = Math.max(2, z.width + deltaPctX);
+        newW = Math.max(2, item.width + deltaPctX);
         break;
       case 's':
-        newH = Math.max(2, z.height + deltaPctY);
+        newH = Math.max(2, item.height + deltaPctY);
         break;
       case 'nw':
-        newX = Math.min(z.x + z.width - 2, z.x + deltaPctX);
-        newY = Math.min(z.y + z.height - 2, z.y + deltaPctY);
-        newW = z.width - (newX - z.x);
-        newH = z.height - (newY - z.y);
+        newX = Math.min(item.x + item.width - 2, item.x + deltaPctX);
+        newY = Math.min(item.y + item.height - 2, item.y + deltaPctY);
+        newW = item.width - (newX - item.x);
+        newH = item.height - (newY - item.y);
         break;
       case 'n':
-        newY = Math.min(z.y + z.height - 2, z.y + deltaPctY);
-        newH = z.height - (newY - z.y);
+        newY = Math.min(item.y + item.height - 2, item.y + deltaPctY);
+        newH = item.height - (newY - item.y);
         break;
       case 'w':
-        newX = Math.min(z.x + z.width - 2, z.x + deltaPctX);
-        newW = z.width - (newX - z.x);
+        newX = Math.min(item.x + item.width - 2, item.x + deltaPctX);
+        newW = item.width - (newX - item.x);
         break;
       case 'ne':
-        newY = Math.min(z.y + z.height - 2, z.y + deltaPctY);
-        newW = Math.max(2, z.width + deltaPctX);
-        newH = z.height - (newY - z.y);
+        newY = Math.min(item.y + item.height - 2, item.y + deltaPctY);
+        newW = Math.max(2, item.width + deltaPctX);
+        newH = item.height - (newY - item.y);
         break;
       case 'sw':
-        newX = Math.min(z.x + z.width - 2, z.x + deltaPctX);
-        newW = z.width - (newX - z.x);
-        newH = Math.max(2, z.height + deltaPctY);
+        newX = Math.min(item.x + item.width - 2, item.x + deltaPctX);
+        newW = item.width - (newX - item.x);
+        newH = Math.max(2, item.height + deltaPctY);
         break;
     }
 
@@ -543,41 +657,42 @@
     newW = Math.max(2, Math.round(newW * 10) / 10);
     newH = Math.max(2, Math.round(newH * 10) / 10);
 
-    const zone = allZones.find(item => item.id === selectedZoneId);
-    if (zone) {
-      zone.x = newX;
-      zone.y = newY;
-      zone.width = newW;
-      zone.height = newH;
-
-      propZoneX.value = newX;
-      propZoneY.value = newY;
-      propZoneW.value = newW;
-      propZoneH.value = newH;
-
-      const el = document.getElementById(`admin-zone-box-${zone.id}`);
-      if (el) {
-        el.style.left = `${newX}%`;
-        el.style.top = `${newY}%`;
-        el.style.width = `${newW}%`;
-        el.style.height = `${newH}%`;
+    if (dragItemType === 'zone') {
+      const zone = allZones.find(z => z.id === selectedZoneId);
+      if (zone) {
+        zone.x = newX; zone.y = newY; zone.width = newW; zone.height = newH;
+        propZoneX.value = newX; propZoneY.value = newY; propZoneW.value = newW; propZoneH.value = newH;
+        const el = document.getElementById(`admin-zone-box-${zone.id}`);
+        if (el) { el.style.left = `${newX}%`; el.style.top = `${newY}%`; el.style.width = `${newW}%`; el.style.height = `${newH}%`; }
+      }
+    } else if (dragItemType === 'stall') {
+      const stall = allStalls.find(s => s.id === selectedStallId);
+      if (stall) {
+        stall.x = newX; stall.y = newY; stall.width = newW; stall.height = newH;
+        propStallX.value = newX; propStallY.value = newY; propStallW.value = newW; propStallH.value = newH;
+        const el = document.getElementById(`admin-stall-box-${stall.id}`);
+        if (el) { el.style.left = `${newX}%`; el.style.top = `${newY}%`; el.style.width = `${newW}%`; el.style.height = `${newH}%`; }
       }
     }
   }
 
-  // Select Zone for Inspector Panel
+  // Select Zone
   function selectZone(zoneId) {
+    deselectAll();
     selectedZoneId = zoneId;
-    const zone = allZones.find(z => z.id === zoneId);
-    if (!zone) return deselectZone();
+    dragItemType = 'zone';
 
-    document.querySelectorAll('.editor-zone-box').forEach(b => b.classList.remove('selected'));
+    const zone = allZones.find(z => z.id === zoneId);
+    if (!zone) return;
+
     const el = document.getElementById(`admin-zone-box-${zone.id}`);
     if (el) el.classList.add('selected');
 
-    // Populate Inspector Form
     inspectorEmptyState.style.display = 'none';
-    inspectorForm.style.display = 'block';
+    inspectorStallForm.style.display = 'none';
+    inspectorZoneForm.style.display = 'block';
+    inspectorTitle.textContent = 'Zone Properties';
+    inspectorBadge.textContent = 'Zone';
 
     propZoneName.value = zone.name;
     propZoneShape.value = zone.shape || 'rect';
@@ -591,40 +706,55 @@
     propZoneDesc.value = zone.description || '';
   }
 
-  function deselectZone() {
+  // Select Stall
+  function selectStall(stallId) {
+    deselectAll();
+    selectedStallId = stallId;
+    dragItemType = 'stall';
+
+    const stall = allStalls.find(s => s.id === stallId);
+    if (!stall) return;
+
+    const el = document.getElementById(`admin-stall-box-${stall.id}`);
+    if (el) el.classList.add('selected');
+
+    inspectorEmptyState.style.display = 'none';
+    inspectorZoneForm.style.display = 'none';
+    inspectorStallForm.style.display = 'block';
+    inspectorTitle.textContent = `Stall ${stall.stall_number}`;
+    inspectorBadge.textContent = 'Stall Booth';
+
+    propStallNumber.value = stall.stall_number;
+    propStallZone.value = stall.zone_id;
+    propStallCompany.value = stall.company_name || '';
+    propStallCategory.value = stall.category || '';
+    propStallBookingStatus.value = stall.booking_status || 'Available';
+    propStallPaymentStatus.value = stall.payment_status || 'Unpaid';
+    propStallAmount.value = stall.payment_amount || 0;
+    propStallX.value = stall.x !== undefined ? stall.x : 20;
+    propStallY.value = stall.y !== undefined ? stall.y : 20;
+    propStallW.value = stall.width || 7.0;
+    propStallH.value = stall.height || 7.0;
+    propStallPublic.checked = !!stall.public_visible;
+    propStallDesc.value = stall.public_description || '';
+    propStallContact.value = stall.contact_person || '';
+    propStallPhone.value = stall.phone || '';
+    propStallEmail.value = stall.email || '';
+  }
+
+  function deselectAll() {
     selectedZoneId = null;
-    document.querySelectorAll('.editor-zone-box').forEach(b => b.classList.remove('selected'));
+    selectedStallId = null;
+    dragItemType = null;
+    document.querySelectorAll('.editor-zone-box, .editor-stall-box').forEach(b => b.classList.remove('selected'));
     inspectorEmptyState.style.display = 'block';
-    inspectorForm.style.display = 'none';
+    inspectorZoneForm.style.display = 'none';
+    inspectorStallForm.style.display = 'none';
+    inspectorTitle.textContent = 'Properties';
+    inspectorBadge.textContent = 'Inspector';
   }
 
-  // Inspector Input Change Handlers (Live Canvas Feedback)
-  propZoneColor.addEventListener('input', () => {
-    propZoneColorHex.value = propZoneColor.value;
-    updateLiveZoneStyle();
-  });
-  propZoneColorHex.addEventListener('input', () => {
-    propZoneColor.value = propZoneColorHex.value;
-    updateLiveZoneStyle();
-  });
-  propZoneShape.addEventListener('change', updateLiveZoneStyle);
-  propZonePublic.addEventListener('change', updateLiveZoneStyle);
-
-  function updateLiveZoneStyle() {
-    if (!selectedZoneId) return;
-    const el = document.getElementById(`admin-zone-box-${selectedZoneId}`);
-    if (!el) return;
-
-    const color = propZoneColor.value;
-    const shape = propZoneShape.value;
-    const isPub = propZonePublic.checked;
-
-    el.className = `editor-zone-box shape-${shape} ${isPub ? '' : 'is-private'} selected`;
-    el.style.backgroundColor = `${color}33`;
-    el.style.borderColor = color;
-  }
-
-  // Save Zone Changes
+  // Save Zone
   async function saveZoneProperties(notify = true) {
     if (!selectedZoneId) return;
     const payload = {
@@ -647,53 +777,138 @@
       });
       const json = await res.json();
       if (json.success) {
-        if (notify) showToast('Zone properties saved successfully', 'success');
+        if (notify) showToast('Zone saved', 'success');
         await loadMapsAndZones();
         selectZone(selectedZoneId);
-      } else {
-        showToast(json.error || 'Failed to save zone', 'error');
       }
     } catch (err) {
-      showToast('Network error saving zone', 'error');
+      showToast('Error saving zone', 'error');
     }
   }
   btnSaveZoneProps.addEventListener('click', () => saveZoneProperties(true));
 
-  // Duplicate Zone
-  btnDuplicateZone.addEventListener('click', async () => {
-    if (!selectedZoneId) return;
+  // Save Stall
+  async function saveStallProperties(notify = true) {
+    if (!selectedStallId) return;
+    const payload = {
+      stall_number: propStallNumber.value.trim(),
+      zone_id: Number(propStallZone.value),
+      company_name: propStallCompany.value.trim(),
+      category: propStallCategory.value.trim(),
+      booking_status: propStallBookingStatus.value,
+      payment_status: propStallPaymentStatus.value,
+      payment_amount: parseFloat(propStallAmount.value) || 0,
+      x: parseFloat(propStallX.value) || 20,
+      y: parseFloat(propStallY.value) || 20,
+      width: parseFloat(propStallW.value) || 7,
+      height: parseFloat(propStallH.value) || 7,
+      public_visible: propStallPublic.checked,
+      public_description: propStallDesc.value.trim(),
+      contact_person: propStallContact.value.trim(),
+      phone: propStallPhone.value.trim(),
+      email: propStallEmail.value.trim()
+    };
+
     try {
-      const res = await fetch(`/api/admin/zones/${selectedZoneId}/duplicate`, { method: 'POST' });
+      const res = await fetch(`/api/admin/stalls/${selectedStallId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
       const json = await res.json();
       if (json.success) {
-        showToast('Zone duplicated', 'success');
-        await loadMapsAndZones();
-        selectZone(json.zone.id);
-      }
-    } catch (e) {
-      showToast('Failed to duplicate zone', 'error');
-    }
-  });
-
-  // Delete Zone
-  btnDeleteZone.addEventListener('click', async () => {
-    if (!selectedZoneId) return;
-    const zone = allZones.find(z => z.id === selectedZoneId);
-    if (!confirm(`Are you sure you want to delete "${zone ? zone.name : 'this zone'}"? All stalls inside will also be removed.`)) return;
-
-    try {
-      const res = await fetch(`/api/admin/zones/${selectedZoneId}`, { method: 'DELETE' });
-      const json = await res.json();
-      if (json.success) {
-        showToast('Zone deleted', 'success');
-        deselectZone();
+        if (notify) showToast('Stall booth saved', 'success');
         await loadMapsAndZones();
         await loadStallsTable();
+        selectStall(selectedStallId);
+      } else {
+        showToast(json.error || 'Failed to save stall', 'error');
+      }
+    } catch (err) {
+      showToast('Error saving stall', 'error');
+    }
+  }
+  btnSaveStallProps.addEventListener('click', () => saveStallProperties(true));
+
+  // Duplicate Stall from Editor
+  btnDuplicateStallEditor.addEventListener('click', async () => {
+    if (!selectedStallId) return;
+    try {
+      const res = await fetch(`/api/admin/stalls/${selectedStallId}/duplicate`, { method: 'POST' });
+      const json = await res.json();
+      if (json.success) {
+        showToast('Stall booth duplicated', 'success');
+        await loadMapsAndZones();
+        await loadStallsTable();
+        selectStall(json.stall.id);
       }
     } catch (e) {
-      showToast('Failed to delete zone', 'error');
+      showToast('Failed to duplicate stall', 'error');
     }
   });
+
+  // Delete Stall from Editor
+  btnDeleteStallEditor.addEventListener('click', async () => {
+    if (!selectedStallId) return;
+    const stall = allStalls.find(s => s.id === selectedStallId);
+    if (!confirm(`Delete Stall "${stall ? stall.stall_number : 'this booth'}"?`)) return;
+
+    try {
+      const res = await fetch(`/api/admin/stalls/${selectedStallId}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (json.success) {
+        showToast('Stall deleted', 'success');
+        deselectAll();
+        await loadMapsAndZones();
+        await loadStallsTable();
+        await loadDashboardStats();
+      }
+    } catch (e) {
+      showToast('Failed to delete stall', 'error');
+    }
+  });
+
+  // Create Stall at Center
+  async function createStallAtCenter() {
+    const targetZoneId = allZones.length > 0 ? allZones[0].id : 1;
+    const stallNum = `B-${Math.floor(Math.random() * 89 + 10)}`;
+    const payload = {
+      stall_number: stallNum,
+      zone_id: targetZoneId,
+      company_name: '',
+      category: 'General',
+      booking_status: 'Available',
+      payment_status: 'Unpaid',
+      payment_amount: 3500.0,
+      x: 45.0,
+      y: 45.0,
+      width: 7.0,
+      height: 7.0,
+      shape: 'rect',
+      public_visible: true,
+      public_description: 'Available booth for reservation.'
+    };
+
+    try {
+      const res = await fetch('/api/admin/stalls', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+      if (json.success) {
+        showToast(`Placed Stall ${stallNum} on floor plan`, 'success');
+        await loadMapsAndZones();
+        await loadStallsTable();
+        await loadDashboardStats();
+        selectStall(json.stall.id);
+      } else {
+        showToast(json.error || 'Failed to place stall', 'error');
+      }
+    } catch (e) {
+      showToast('Failed to create stall', 'error');
+    }
+  }
 
   // Create Zone at Center
   async function createZoneAtCenter(shape = 'rect') {
@@ -727,10 +942,44 @@
     }
   }
 
-  // Upload New Map
-  btnOpenUploadMap.addEventListener('click', () => {
-    uploadMapModal.classList.add('active');
+  // Duplicate Zone
+  btnDuplicateZone.addEventListener('click', async () => {
+    if (!selectedZoneId) return;
+    try {
+      const res = await fetch(`/api/admin/zones/${selectedZoneId}/duplicate`, { method: 'POST' });
+      const json = await res.json();
+      if (json.success) {
+        showToast('Zone duplicated', 'success');
+        await loadMapsAndZones();
+        selectZone(json.zone.id);
+      }
+    } catch (e) {
+      showToast('Failed to duplicate zone', 'error');
+    }
   });
+
+  // Delete Zone
+  btnDeleteZone.addEventListener('click', async () => {
+    if (!selectedZoneId) return;
+    const zone = allZones.find(z => z.id === selectedZoneId);
+    if (!confirm(`Delete Zone "${zone ? zone.name : 'this zone'}"?`)) return;
+
+    try {
+      const res = await fetch(`/api/admin/zones/${selectedZoneId}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (json.success) {
+        showToast('Zone deleted', 'success');
+        deselectAll();
+        await loadMapsAndZones();
+        await loadStallsTable();
+      }
+    } catch (e) {
+      showToast('Failed to delete zone', 'error');
+    }
+  });
+
+  // Upload New Map
+  btnOpenUploadMap.addEventListener('click', () => uploadMapModal.classList.add('active'));
   btnMapUploadClose.addEventListener('click', () => uploadMapModal.classList.remove('active'));
   btnMapUploadCancel.addEventListener('click', () => uploadMapModal.classList.remove('active'));
 
@@ -759,29 +1008,23 @@
         });
 
         const uploadJson = await uploadRes.json();
-        if (!uploadJson.success) {
-          throw new Error(uploadJson.error || 'Upload failed');
-        }
+        if (!uploadJson.success) throw new Error(uploadJson.error || 'Upload failed');
 
-        // Create Map Version
         const mapRes = await fetch('/api/admin/maps', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name,
-            imageUrl: uploadJson.url
-          })
+          body: JSON.stringify({ name, imageUrl: uploadJson.url })
         });
         const mapJson = await mapRes.json();
         if (mapJson.success) {
-          showToast('New floor plan uploaded & activated!', 'success');
+          showToast('Floor plan uploaded & activated!', 'success');
           uploadMapModal.classList.remove('active');
           mapUploadName.value = '';
           mapUploadFile.value = '';
           await loadMapsAndZones();
         }
       } catch (err) {
-        showToast(err.message || 'Error uploading floor plan', 'error');
+        showToast(err.message || 'Error uploading map', 'error');
       } finally {
         btnMapUploadSubmit.disabled = false;
         btnMapUploadSubmit.textContent = 'Upload & Activate Map';
@@ -790,7 +1033,7 @@
     reader.readAsDataURL(file);
   });
 
-  // =================== 3. STALL DATABASE MANAGEMENT ===================
+  // =================== 3. STALL DATABASE TABLE ===================
   async function loadStallsTable() {
     try {
       const qSearch = document.getElementById('stall-search-input').value.trim();
@@ -820,14 +1063,7 @@
   function renderStallsTable(stalls) {
     const tbody = document.getElementById('stalls-table-body');
     if (!stalls || stalls.length === 0) {
-      tbody.innerHTML = `
-        <tr>
-          <td colspan="9" style="text-align: center; padding: 40px; color: var(--text-muted);">
-            <div style="font-size: 24px; margin-bottom: 6px;">🏪</div>
-            <div style="font-weight: 600;">No stalls match your filter criteria</div>
-          </td>
-        </tr>
-      `;
+      tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 40px; color: var(--text-muted);">No stalls match your filter criteria</td></tr>`;
       return;
     }
 
@@ -857,36 +1093,36 @@
           </span>
         </td>
         <td style="text-align: right;">
-          <button class="btn btn-secondary btn-sm" onclick="editStall(${s.id})" title="Edit Stall">✏️</button>
-          <button class="btn btn-danger btn-sm" onclick="deleteStall(${s.id}, '${escapeHtml(s.stall_number)}')" title="Delete Stall">🗑️</button>
+          <button class="btn btn-secondary btn-sm" onclick="switchTab('tab-editor'); selectStall(${s.id});" title="Locate on Map">🗺️</button>
+          <button class="btn btn-secondary btn-sm" onclick="editStall(${s.id})" title="Edit Details">✏️</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteStall(${s.id}, '${escapeHtml(s.stall_number)}')" title="Delete">🗑️</button>
         </td>
       </tr>
     `).join('');
   }
 
-  // Filter Event Listeners
   ['stall-search-input', 'stall-zone-filter', 'stall-booking-filter', 'stall-payment-filter', 'stall-public-filter'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', () => loadStallsTable());
   });
 
-  // Populate Zone Select in Stall Form & Filters
   function populateZoneSelectDropdowns() {
     const formSelect = document.getElementById('form-stall-zone');
     const filterSelect = document.getElementById('stall-zone-filter');
     const csvSelect = document.getElementById('csv-default-zone');
+    const propSelect = document.getElementById('prop-stall-zone');
 
     const optionsHtml = allZones.map(z => `<option value="${z.id}">${escapeHtml(z.name)}</option>`).join('');
     
     if (formSelect) formSelect.innerHTML = optionsHtml;
     if (csvSelect) csvSelect.innerHTML = optionsHtml;
+    if (propSelect) propSelect.innerHTML = optionsHtml;
     if (filterSelect) {
       filterSelect.innerHTML = '<option value="">All Zones</option>' + optionsHtml;
     }
   }
 
-  // Add / Edit Stall Modal Handlers
-  window.openAddStallModal = function(defaultZoneId = null) {
+  window.openAddStallModal = function() {
     isEditingStallId = null;
     stallModalTitle.textContent = 'Add New Stall';
     stallForm.reset();
@@ -895,10 +1131,6 @@
     document.getElementById('form-stall-show-company').checked = true;
     document.getElementById('form-stall-show-cat').checked = true;
     document.getElementById('form-stall-show-desc').checked = true;
-
-    if (defaultZoneId) {
-      document.getElementById('form-stall-zone').value = defaultZoneId;
-    }
     stallModal.classList.add('active');
   };
 
@@ -941,6 +1173,7 @@
       if (json.success) {
         showToast(`Stall ${stallNum} deleted`, 'success');
         await loadStallsTable();
+        await loadMapsAndZones();
         await loadDashboardStats();
       }
     } catch (e) {
@@ -953,7 +1186,6 @@
   btnStallCancel.addEventListener('click', () => stallModal.classList.remove('active'));
   btnStallModalClose.addEventListener('click', () => stallModal.classList.remove('active'));
 
-  // Save Stall Record Form
   btnStallSave.addEventListener('click', async () => {
     const stallNum = document.getElementById('form-stall-num').value.trim();
     const zoneId = document.getElementById('form-stall-zone').value;
@@ -993,15 +1225,16 @@
       });
       const json = await res.json();
       if (json.success) {
-        showToast(isEditingStallId ? 'Stall updated successfully' : 'Stall created successfully', 'success');
+        showToast(isEditingStallId ? 'Stall updated' : 'Stall created', 'success');
         stallModal.classList.remove('active');
         await loadStallsTable();
+        await loadMapsAndZones();
         await loadDashboardStats();
       } else {
         showToast(json.error || 'Failed to save stall', 'error');
       }
     } catch (err) {
-      showToast('Network error saving stall', 'error');
+      showToast('Error saving stall', 'error');
     } finally {
       btnStallSave.disabled = false;
     }
@@ -1027,9 +1260,7 @@
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = () => {
-        csvRawInput.value = reader.result;
-      };
+      reader.onload = () => { csvRawInput.value = reader.result; };
       reader.readAsText(file);
     }
   });
@@ -1066,12 +1297,13 @@
         `;
         showToast(`Imported ${results.imported} records`, 'success');
         await loadStallsTable();
+        await loadMapsAndZones();
         await loadDashboardStats();
       } else {
         showToast(json.error || 'Import failed', 'error');
       }
     } catch (err) {
-      showToast('Network error during import', 'error');
+      showToast('Error during import', 'error');
     } finally {
       btnCsvExecute.disabled = false;
       btnCsvExecute.textContent = 'Process & Import Records';
@@ -1205,16 +1437,19 @@
     });
 
     evtSource.addEventListener('STALL_UPDATED', async () => {
+      await loadMapsAndZones();
       await loadStallsTable();
       await loadDashboardStats();
     });
 
     evtSource.addEventListener('STALL_CREATED', async () => {
+      await loadMapsAndZones();
       await loadStallsTable();
       await loadDashboardStats();
     });
 
     evtSource.addEventListener('STALL_DELETED', async () => {
+      await loadMapsAndZones();
       await loadStallsTable();
       await loadDashboardStats();
     });
@@ -1229,7 +1464,6 @@
     };
   }
 
-  // Escape HTML helper
   function escapeHtml(str) {
     if (!str) return '';
     return String(str)
@@ -1240,7 +1474,9 @@
       .replace(/'/g, '&#039;');
   }
 
-  // Bootstrap
+  window.selectZone = selectZone;
+  window.selectStall = selectStall;
+
   window.addEventListener('DOMContentLoaded', async () => {
     initEditorControls();
     await checkAuth();

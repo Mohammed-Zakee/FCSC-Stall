@@ -30,7 +30,6 @@ function recordAudit(req, action, entityType, entityId, details) {
 // Helper to broadcast changes to both public and admin realtime channels
 function broadcastZoneChange(action, zoneId) {
   try {
-    // Admin payload (all columns)
     const adminZone = db.prepare(`
       SELECT z.*, COUNT(s.id) AS total_stalls,
              COUNT(CASE WHEN s.booking_status = 'Booked' THEN 1 END) AS booked_stalls
@@ -47,7 +46,6 @@ function broadcastZoneChange(action, zoneId) {
 
     if (!adminZone) return;
 
-    // Public sanitized payload
     let publicPayload = null;
     if (adminZone.is_public === 1) {
       publicPayload = {
@@ -78,18 +76,33 @@ function broadcastZoneChange(action, zoneId) {
 function broadcastStallChange(action, stallId, zoneId) {
   try {
     if (action === 'DELETE') {
-      realtimeHub.broadcast('STALL_DELETED', { stallId, zoneId }, { stallId, zoneId });
+      realtimeHub.broadcast('STALL_DELETED', { id: stallId, stallId, zoneId }, { id: stallId, stallId, zoneId });
       return;
     }
 
-    const adminStall = db.prepare('SELECT * FROM stalls WHERE id = ?;').get(stallId);
+    const adminStall = db.prepare(`
+      SELECT s.*, z.name AS zone_name, z.color AS zone_color, z.is_public AS zone_is_public
+      FROM stalls s
+      LEFT JOIN zones z ON s.zone_id = z.id
+      WHERE s.id = ?;
+    `).get(stallId);
+
     if (!adminStall) return;
 
     let publicPayload = null;
-    if (adminStall.public_visible === 1) {
+    if (adminStall.public_visible === 1 && adminStall.zone_is_public === 1) {
       publicPayload = {
+        id: adminStall.id,
+        zoneId: adminStall.zone_id,
+        zoneName: adminStall.zone_name,
         stallNumber: adminStall.stall_number,
-        zoneId: adminStall.zone_id
+        x: adminStall.x,
+        y: adminStall.y,
+        width: adminStall.width || 6.5,
+        height: adminStall.height || 6.5,
+        shape: adminStall.shape || 'rect',
+        color: adminStall.color || adminStall.zone_color || '#3b82f6',
+        isAvailable: adminStall.booking_status === 'Available'
       };
       if (adminStall.show_company_name && adminStall.company_name) {
         publicPayload.companyName = adminStall.company_name;
@@ -107,7 +120,7 @@ function broadcastStallChange(action, stallId, zoneId) {
 
     realtimeHub.broadcast(
       action === 'CREATE' ? 'STALL_CREATED' : 'STALL_UPDATED',
-      adminStall.public_visible === 1 ? publicPayload : { stallNumber: adminStall.stall_number, zoneId, removed: true },
+      publicPayload || { id: stallId, stallNumber: adminStall.stall_number, zoneId, removed: true },
       adminStall
     );
   } catch (err) {
@@ -271,7 +284,6 @@ function handleCreateMap(req, res, body) {
     return sendJson(res, 400, { success: false, error: 'Map name and image are required.' });
   }
 
-  // Deactivate existing maps
   db.prepare('UPDATE maps SET is_active = 0;').run();
 
   const maxVersion = db.prepare('SELECT MAX(version) as max_v FROM maps;').get().max_v || 0;
@@ -287,7 +299,6 @@ function handleCreateMap(req, res, body) {
 
   const createdMap = db.prepare('SELECT * FROM maps WHERE id = ?;').get(newMapId);
 
-  // Broadcast to all clients
   realtimeHub.broadcast('MAP_CHANGED', {
     id: createdMap.id,
     name: createdMap.name,
@@ -407,7 +418,6 @@ function handleDeleteZone(req, res, zoneId) {
     return sendJson(res, 404, { success: false, error: 'Zone not found.' });
   }
 
-  // Delete zone (cascades stalls via foreign key)
   db.prepare('DELETE FROM zones WHERE id = ?;').run(zoneId);
   recordAudit(req, 'DELETE', 'ZONE', zoneId, `Deleted zone "${existing.name}"`);
   broadcastZoneChange('DELETE', zoneId);
@@ -500,7 +510,8 @@ function handleCreateStall(req, res, body) {
   const {
     zone_id, stall_number, company_name, company_logo, category,
     public_description, public_logo, show_company_name, show_logo, show_category, show_description,
-    public_visible, contact_person, phone, email, payment_status, payment_amount, booking_status, internal_notes
+    public_visible, contact_person, phone, email, payment_status, payment_amount, booking_status, internal_notes,
+    x, y, width, height, shape, color
   } = body;
 
   if (!zone_id || !stall_number) {
@@ -517,8 +528,9 @@ function handleCreateStall(req, res, body) {
     INSERT INTO stalls (
       zone_id, stall_number, company_name, company_logo, category,
       public_description, public_logo, show_company_name, show_logo, show_category, show_description,
-      public_visible, contact_person, phone, email, payment_status, payment_amount, booking_status, internal_notes
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+      public_visible, contact_person, phone, email, payment_status, payment_amount, booking_status, internal_notes,
+      x, y, width, height, shape, color
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
   `).run(
     Number(zone_id),
     stall_number.trim(),
@@ -538,7 +550,13 @@ function handleCreateStall(req, res, body) {
     payment_status || 'Unpaid',
     Number(payment_amount) || 0.0,
     booking_status || 'Available',
-    internal_notes || ''
+    internal_notes || '',
+    x !== undefined ? Number(x) : 20.0,
+    y !== undefined ? Number(y) : 20.0,
+    width !== undefined ? Number(width) : 7.0,
+    height !== undefined ? Number(height) : 7.0,
+    shape || 'rect',
+    color || '#3b82f6'
   );
 
   const stallId = Number(result.lastInsertRowid);
@@ -582,18 +600,26 @@ function handleUpdateStall(req, res, stallId, body) {
   const payment_amount = body.payment_amount !== undefined ? Number(body.payment_amount) : existing.payment_amount;
   const booking_status = body.booking_status !== undefined ? body.booking_status : existing.booking_status;
   const internal_notes = body.internal_notes !== undefined ? body.internal_notes : existing.internal_notes;
+  const x = body.x !== undefined ? Number(body.x) : existing.x;
+  const y = body.y !== undefined ? Number(body.y) : existing.y;
+  const width = body.width !== undefined ? Number(body.width) : existing.width;
+  const height = body.height !== undefined ? Number(body.height) : existing.height;
+  const shape = body.shape !== undefined ? body.shape : existing.shape;
+  const color = body.color !== undefined ? body.color : existing.color;
 
   db.prepare(`
     UPDATE stalls SET
       zone_id = ?, stall_number = ?, company_name = ?, company_logo = ?, category = ?,
       public_description = ?, public_logo = ?, show_company_name = ?, show_logo = ?, show_category = ?, show_description = ?,
       public_visible = ?, contact_person = ?, phone = ?, email = ?, payment_status = ?, payment_amount = ?, booking_status = ?, internal_notes = ?,
+      x = ?, y = ?, width = ?, height = ?, shape = ?, color = ?,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ?;
   `).run(
     zone_id, stall_number, company_name, company_logo, category,
     public_description, public_logo, show_company_name, show_logo, show_category, show_description,
     public_visible, contact_person, phone, email, payment_status, payment_amount, booking_status, internal_notes,
+    x, y, width, height, shape, color,
     stallId
   );
 
@@ -615,6 +641,38 @@ function handleDeleteStall(req, res, stallId) {
   broadcastStallChange('DELETE', stallId, existing.zone_id);
 
   sendJson(res, 200, { success: true, message: `Stall "${existing.stall_number}" deleted.` });
+}
+
+function handleDuplicateStall(req, res, stallId) {
+  const stall = db.prepare('SELECT * FROM stalls WHERE id = ?;').get(stallId);
+  if (!stall) {
+    return sendJson(res, 404, { success: false, error: 'Stall not found.' });
+  }
+
+  const newNumber = `${stall.stall_number}-COPY`;
+  const newX = Math.min(90, (stall.x || 20) + 3);
+  const newY = Math.min(90, (stall.y || 20) + 3);
+
+  const result = db.prepare(`
+    INSERT INTO stalls (
+      zone_id, stall_number, company_name, company_logo, category,
+      public_description, public_logo, show_company_name, show_logo, show_category, show_description,
+      public_visible, contact_person, phone, email, payment_status, payment_amount, booking_status, internal_notes,
+      x, y, width, height, shape, color
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+  `).run(
+    stall.zone_id, newNumber, stall.company_name, stall.company_logo, stall.category,
+    stall.public_description, stall.public_logo, stall.show_company_name, stall.show_logo, stall.show_category, stall.show_description,
+    stall.public_visible, stall.contact_person, stall.phone, stall.email, stall.payment_status, stall.payment_amount, stall.booking_status, stall.internal_notes,
+    newX, newY, stall.width, stall.height, stall.shape, stall.color
+  );
+
+  const newId = Number(result.lastInsertRowid);
+  recordAudit(req, 'CREATE', 'STALL', newId, `Duplicated stall from "${stall.stall_number}" to "${newNumber}"`);
+  broadcastStallChange('CREATE', newId, stall.zone_id);
+
+  const newStall = db.prepare('SELECT * FROM stalls WHERE id = ?;').get(newId);
+  sendJson(res, 201, { success: true, stall: newStall });
 }
 
 // ----------------- CSV BATCH IMPORT & EXPORT -----------------
@@ -648,13 +706,13 @@ function handleImportStallsCSV(req, res, body) {
   const insertStmt = db.prepare(`
     INSERT INTO stalls (
       zone_id, stall_number, company_name, category, contact_person, phone, email,
-      payment_status, payment_amount, booking_status, public_description, public_visible
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+      payment_status, payment_amount, booking_status, public_description, public_visible,
+      x, y, width, height, shape, color
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
   `);
 
   for (let i = 1; i < lines.length; i++) {
     const rawLine = lines[i];
-    // Simple CSV parse with comma split handling quotes
     const values = [];
     let inQuotes = false;
     let currentVal = '';
@@ -682,14 +740,12 @@ function handleImportStallsCSV(req, res, body) {
       continue;
     }
 
-    // Check duplicate
     const exists = db.prepare('SELECT id FROM stalls WHERE stall_number = ?;').get(stallNum);
     if (exists) {
       results.errors.push({ line: i + 1, error: `Stall number "${stallNum}" already exists` });
       continue;
     }
 
-    // Determine zone ID
     let targetZoneId = defaultZoneId;
     const zoneVal = row['zone'] || row['zone_id'] || row['zonename'];
     if (zoneVal && zoneMap[zoneVal.toLowerCase()]) {
@@ -718,7 +774,13 @@ function handleImportStallsCSV(req, res, body) {
         parseFloat(row['amount'] || row['paymentamount'] || 0) || 0,
         row['bookingstatus'] || row['booking_status'] || 'Available',
         row['description'] || row['publicdescription'] || '',
-        1
+        1,
+        parseFloat(row['x'] || 20) || 20,
+        parseFloat(row['y'] || 20) || 20,
+        parseFloat(row['width'] || 7) || 7,
+        parseFloat(row['height'] || 7) || 7,
+        row['shape'] || 'rect',
+        row['color'] || '#3b82f6'
       );
       results.imported++;
     } catch (e) {
@@ -741,7 +803,7 @@ function handleExportStallsCSV(req, res) {
   const headers = [
     'stall_number', 'zone_name', 'company_name', 'category', 'booking_status',
     'payment_status', 'payment_amount', 'contact_person', 'phone', 'email',
-    'public_visible', 'public_description', 'internal_notes'
+    'public_visible', 'public_description', 'x', 'y', 'width', 'height', 'shape', 'internal_notes'
   ];
 
   let csv = headers.join(',') + '\r\n';
@@ -759,6 +821,11 @@ function handleExportStallsCSV(req, res) {
       `"${(s.email || '').replace(/"/g, '""')}"`,
       s.public_visible ? '1' : '0',
       `"${(s.public_description || '').replace(/"/g, '""')}"`,
+      s.x || 0,
+      s.y || 0,
+      s.width || 7,
+      s.height || 7,
+      `"${(s.shape || 'rect')}"`,
       `"${(s.internal_notes || '').replace(/"/g, '""')}"`
     ];
     csv += row.join(',') + '\r\n';
@@ -799,6 +866,7 @@ module.exports = {
   handleCreateStall,
   handleUpdateStall,
   handleDeleteStall,
+  handleDuplicateStall,
   handleImportStallsCSV,
   handleExportStallsCSV,
   handleGetAuditLogs

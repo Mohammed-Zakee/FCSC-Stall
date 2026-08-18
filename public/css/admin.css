@@ -407,8 +407,70 @@ body.admin-body {
   z-index: 60;
 }
 
-.editor-zone-box.selected .resize-handle {
+.editor-zone-box.selected .resize-handle,
+.editor-stall-box.selected .resize-handle {
   display: block;
+}
+
+/* Editable Stall in Canvas */
+.editor-stall-box {
+  position: absolute;
+  cursor: move;
+  border: 2px solid #2563eb;
+  border-radius: 6px;
+  box-sizing: border-box;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  transition: box-shadow 0.15s ease, transform 0.1s ease;
+  user-select: none;
+  z-index: 20;
+}
+
+.editor-stall-box.status-available {
+  border-color: #10b981;
+  background: #f0fdf4;
+}
+
+.editor-stall-box.status-reserved {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.editor-stall-box.status-blocked {
+  border-color: #ef4444;
+  background: #fef2f2;
+}
+
+.editor-stall-box.selected {
+  border-color: #2563eb;
+  border-width: 2.5px;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.3);
+  z-index: 70;
+}
+
+.editor-stall-box .stall-tag-num {
+  font-family: monospace;
+  font-size: 11px;
+  font-weight: 800;
+  color: #0f172a;
+  pointer-events: none;
+}
+
+.editor-stall-box .stall-tag-comp {
+  font-size: 9px;
+  color: #64748b;
+  font-weight: 600;
+  max-width: 90%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .handle-nw { top: -5px; left: -5px; cursor: nwse-resize; }

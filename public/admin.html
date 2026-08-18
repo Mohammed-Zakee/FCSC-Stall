@@ -172,11 +172,11 @@
             <button class="tool-btn active" id="tool-select" title="Select &amp; Transform Hotspot">
               <span>↖</span> Select / Move
             </button>
+            <button class="tool-btn" id="tool-add-stall" title="Place Stall / Booth on Map" style="color: var(--primary); font-weight: 700;">
+              <span>🏪</span> + Add Stall Booth
+            </button>
             <button class="tool-btn" id="tool-add-rect" title="Add Rectangle Zone">
               <span>▢</span> Rect Zone
-            </button>
-            <button class="tool-btn" id="tool-add-rounded" title="Add Rounded Rect Zone">
-              <span>▢</span> Rounded Zone
             </button>
             <button class="tool-btn" id="tool-add-circle" title="Add Circular Zone">
               <span>○</span> Circle Zone
@@ -206,6 +206,8 @@
                 <img id="editor-map-img" src="/assets/default-floorplan.svg" alt="Editor Floor Plan">
                 <!-- Zones Editable Layer -->
                 <div class="editor-zones-layer" id="editor-zones-layer"></div>
+                <!-- Stalls Editable Layer -->
+                <div class="editor-stalls-layer" id="editor-stalls-layer" style="position: absolute; inset: 0;"></div>
               </div>
             </div>
           </div>
@@ -213,20 +215,21 @@
           <!-- Right Properties Inspector -->
           <aside class="editor-sidebar-inspector" id="editor-inspector">
             <div class="inspector-header">
-              <span id="inspector-title">Zone Properties</span>
-              <span class="badge badge-primary" id="inspector-badge">Selected</span>
+              <span id="inspector-title">Properties</span>
+              <span class="badge badge-primary" id="inspector-badge">Inspector</span>
             </div>
 
             <div class="inspector-body" id="inspector-form-container">
               <!-- Empty Selection State -->
               <div id="inspector-empty-state" style="text-align: center; padding: 40px 10px; color: var(--text-muted);">
                 <div style="font-size: 32px; margin-bottom: 8px;">↖</div>
-                <div style="font-weight: 600; font-size: 14px; color: var(--text-main);">No Zone Selected</div>
-                <div style="font-size: 12px; margin-top: 4px;">Click any zone in the canvas or add a new zone from the toolbar to edit properties.</div>
+                <div style="font-weight: 600; font-size: 14px; color: var(--text-main);">No Item Selected</div>
+                <div style="font-size: 12px; margin-top: 4px;">Click any stall booth or zone in the canvas, or use the toolbar to place new stalls.</div>
               </div>
 
-              <!-- Active Inspector Form -->
-              <form id="inspector-form" style="display: none;">
+              <!-- Zone Inspector Form -->
+              <form id="inspector-zone-form" style="display: none;">
+                <div style="font-size: 12px; font-weight: 700; color: var(--primary); text-transform: uppercase; margin-bottom: 10px;">🗺️ Zone Settings</div>
                 <div class="form-group">
                   <label class="form-label">Zone Name <span class="required">*</span></label>
                   <input type="text" id="prop-zone-name" class="form-input" required>
@@ -289,12 +292,116 @@
                   <textarea id="prop-zone-desc" class="form-textarea" placeholder="Description shown in public popup..."></textarea>
                 </div>
 
-                <!-- Zone Actions -->
-                <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 20px;">
-                  <button type="button" class="btn btn-primary" id="btn-save-zone-props">Save Zone Changes</button>
+                <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 16px;">
+                  <button type="button" class="btn btn-primary" id="btn-save-zone-props">Save Zone</button>
                   <div style="display: flex; gap: 8px;">
                     <button type="button" class="btn btn-secondary" id="btn-duplicate-zone" style="flex: 1;">Duplicate</button>
                     <button type="button" class="btn btn-danger" id="btn-delete-zone" style="flex: 1;">Delete</button>
+                  </div>
+                </div>
+              </form>
+
+              <!-- Stall Inspector Form -->
+              <form id="inspector-stall-form" style="display: none;">
+                <div style="font-size: 12px; font-weight: 700; color: var(--primary); text-transform: uppercase; margin-bottom: 10px;">🏪 Stall / Booth Settings</div>
+                
+                <div class="form-group">
+                  <label class="form-label">Stall Number <span class="required">*</span></label>
+                  <input type="text" id="prop-stall-number" class="form-input" required placeholder="e.g. A-01">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Assigned Zone <span class="required">*</span></label>
+                  <select id="prop-stall-zone" class="form-select" required></select>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Company / Exhibitor</label>
+                  <input type="text" id="prop-stall-company" class="form-input" placeholder="e.g. Quantum Robotics">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Category</label>
+                  <input type="text" id="prop-stall-category" class="form-input" placeholder="e.g. Robotics &amp; AI">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                  <div class="form-group">
+                    <label class="form-label">Booking Status</label>
+                    <select id="prop-stall-booking-status" class="form-select">
+                      <option value="Available">Available</option>
+                      <option value="Booked">Booked</option>
+                      <option value="Reserved">Reserved</option>
+                      <option value="Blocked">Blocked</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Payment Status</label>
+                    <select id="prop-stall-payment-status" class="form-select">
+                      <option value="Paid">Paid</option>
+                      <option value="Pending">Pending</option>
+                      <option value="Unpaid">Unpaid</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Price / Fee ($)</label>
+                  <input type="number" id="prop-stall-amount" class="form-input" step="0.01" min="0">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Position &amp; Size (% Relative)</label>
+                  <div class="coords-grid">
+                    <div>
+                      <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">X (%)</span>
+                      <input type="number" id="prop-stall-x" class="form-input" step="0.1" min="0" max="100">
+                    </div>
+                    <div>
+                      <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Y (%)</span>
+                      <input type="number" id="prop-stall-y" class="form-input" step="0.1" min="0" max="100">
+                    </div>
+                    <div>
+                      <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Width (%)</span>
+                      <input type="number" id="prop-stall-w" class="form-input" step="0.1" min="1" max="100">
+                    </div>
+                    <div>
+                      <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Height (%)</span>
+                      <input type="number" id="prop-stall-h" class="form-input" step="0.1" min="1" max="100">
+                    </div>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <div class="toggle-switch-wrapper">
+                    <div>
+                      <div style="font-weight: 600; font-size: 13px;">Publish to Public Map</div>
+                      <div style="font-size: 11px; color: var(--text-muted);">Visible to visitors</div>
+                    </div>
+                    <label class="toggle-switch">
+                      <input type="checkbox" id="prop-stall-public" checked>
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Public Description</label>
+                  <textarea id="prop-stall-desc" class="form-textarea" placeholder="Short description for attendees..."></textarea>
+                </div>
+
+                <div class="form-group" style="background: #fffbeb; padding: 10px; border-radius: var(--radius-sm); border: 1px solid #fde68a;">
+                  <div style="font-size: 11px; font-weight: 700; color: #92400e; margin-bottom: 6px;">🔒 PRIVATE / CONTACT DETAILS</div>
+                  <input type="text" id="prop-stall-contact" class="form-input" placeholder="Contact Person" style="margin-bottom: 6px; font-size: 12px;">
+                  <input type="tel" id="prop-stall-phone" class="form-input" placeholder="Phone Number" style="margin-bottom: 6px; font-size: 12px;">
+                  <input type="email" id="prop-stall-email" class="form-input" placeholder="Email Address" style="font-size: 12px;">
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 16px;">
+                  <button type="button" class="btn btn-primary" id="btn-save-stall-props">Save Stall</button>
+                  <div style="display: flex; gap: 8px;">
+                    <button type="button" class="btn btn-secondary" id="btn-duplicate-stall-editor" style="flex: 1;">Duplicate</button>
+                    <button type="button" class="btn btn-danger" id="btn-delete-stall-editor" style="flex: 1;">Delete</button>
                   </div>
                 </div>
               </form>

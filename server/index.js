@@ -163,6 +163,10 @@ const server = http.createServer(async (req, res) => {
     return publicRoutes.handleGetPublicZones(req, res);
   }
 
+  if (pathname === '/api/public/stalls' && method === 'GET') {
+    return publicRoutes.handleGetPublicStalls(req, res);
+  }
+
   const publicZoneStallsMatch = pathname.match(/^\/api\/public\/zones\/(\d+)\/stalls$/);
   if (publicZoneStallsMatch && method === 'GET') {
     return publicRoutes.handleGetPublicZoneStalls(req, res, Number(publicZoneStallsMatch[1]));
@@ -265,6 +269,12 @@ const server = http.createServer(async (req, res) => {
     if (!requireAdminAuth(req, res)) return;
     const body = await parseJsonBody(req);
     return adminRoutes.handleCreateStall(req, res, body);
+  }
+
+  const duplicateStallMatch = pathname.match(/^\/api\/admin\/stalls\/(\d+)\/duplicate$/);
+  if (duplicateStallMatch && method === 'POST') {
+    if (!requireAdminAuth(req, res)) return;
+    return adminRoutes.handleDuplicateStall(req, res, Number(duplicateStallMatch[1]));
   }
 
   if (pathname === '/api/admin/stalls/import' && method === 'POST') {

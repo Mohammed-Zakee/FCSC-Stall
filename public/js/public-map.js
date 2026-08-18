@@ -1,12 +1,12 @@
-// public/js/public-map.js - Public Interactive Map Engine
+// public/js/public-map.js - Sensory Interactive Public Map Engine
 (function() {
   'use strict';
 
   // State
   let currentMap = null;
   let activeZones = [];
-  let currentZoneStalls = [];
-  let selectedZoneId = null;
+  let activeStalls = [];
+  let selectedStallId = null;
 
   // Viewport Pan & Zoom State
   let scale = 1.0;
@@ -21,9 +21,19 @@
   const stage = document.getElementById('map-stage');
   const mapImage = document.getElementById('map-image');
   const zonesLayer = document.getElementById('zones-layer');
+  const mapWrapper = document.getElementById('map-wrapper');
   const eventTitle = document.getElementById('event-title');
   const statusDot = document.getElementById('status-dot');
   const statusText = document.getElementById('status-text');
+
+  // Stalls Layer Element
+  let stallsLayer = document.getElementById('stalls-layer');
+  if (!stallsLayer) {
+    stallsLayer = document.createElement('div');
+    stallsLayer.className = 'stalls-overlay-layer';
+    stallsLayer.id = 'stalls-layer';
+    mapWrapper.appendChild(stallsLayer);
+  }
 
   // Modal Elements
   const zoneModal = document.getElementById('zone-modal');
@@ -45,19 +55,6 @@
   const btnZoomOut = document.getElementById('btn-zoom-out');
   const btnFitScreen = document.getElementById('btn-fit-screen');
   const btnResetZoom = document.getElementById('btn-reset-zoom');
-
-  // Toast Helper
-  function showToast(message, type = 'info') {
-    const container = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.innerHTML = `<span>${type === 'success' ? '✓' : type === 'error' ? '⚠' : 'ℹ'}</span> <span>${message}</span>`;
-    container.appendChild(toast);
-    setTimeout(() => {
-      toast.style.opacity = '0';
-      setTimeout(() => toast.remove(), 300);
-    }, 3500);
-  }
 
   // Update Transform
   function updateTransform() {
@@ -82,16 +79,16 @@
     updateTransform();
   }
 
-  // Pan to a specific zone % coordinates
-  function panToZone(zoneX, zoneY) {
+  // Pan to a specific % coordinates
+  function panToCoords(x, y) {
     const vpWidth = viewport.clientWidth;
     const vpHeight = viewport.clientHeight;
     const imgWidth = mapImage.clientWidth || 1600;
     const imgHeight = mapImage.clientHeight || 1000;
 
-    scale = Math.max(scale, 1.0);
-    const targetPxX = (zoneX / 100) * imgWidth;
-    const targetPxY = (zoneY / 100) * imgHeight;
+    scale = Math.max(scale, 1.25);
+    const targetPxX = (x / 100) * imgWidth;
+    const targetPxY = (y / 100) * imgHeight;
 
     panX = vpWidth / 2 - targetPxX * scale;
     panY = vpHeight / 2 - targetPxY * scale;
@@ -100,9 +97,8 @@
 
   // Initialize Pan & Zoom Event Handlers
   function initPanZoom() {
-    // Mouse Drag
     viewport.addEventListener('mousedown', (e) => {
-      if (e.target.closest('.public-zone-hotspot') || e.target.closest('.map-controls-floating')) return;
+      if (e.target.closest('.public-stall-hotspot') || e.target.closest('.public-zone-hotspot') || e.target.closest('.map-controls-floating')) return;
       isDragging = true;
       startX = e.clientX - panX;
       startY = e.clientY - panY;
@@ -131,7 +127,6 @@
       const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
       const newScale = Math.min(Math.max(scale * zoomFactor, 0.25), 4.0);
 
-      // Adjust pan to zoom into mouse cursor
       panX = mouseX - (mouseX - panX) * (newScale / scale);
       panY = mouseY - (mouseY - panY) * (newScale / scale);
       scale = newScale;
@@ -199,7 +194,7 @@
     });
   }
 
-  // Load Map & Zones
+  // Load Map, Zones & Visual Stalls
   async function loadMapData() {
     try {
       const mapRes = await fetch('/api/public/map');
@@ -217,9 +212,9 @@
         fitToScreen();
       };
 
-      await loadZonesData();
+      await Promise.all([loadZonesData(), loadStallsData()]);
     } catch (err) {
-      console.error('[Public Map] Failed to load map:', err);
+      console.error('[Public Map] Failed to load map data:', err);
     }
   }
 
@@ -236,7 +231,20 @@
     }
   }
 
-  // Render Zone Hotspot Overlays
+  async function loadStallsData() {
+    try {
+      const stallsRes = await fetch('/api/public/stalls');
+      const stallsJson = await stallsRes.json();
+      if (stallsJson.success) {
+        activeStalls = stallsJson.stalls || [];
+        renderStalls();
+      }
+    } catch (err) {
+      console.error('[Public Map] Failed to load stalls:', err);
+    }
+  }
+
+  // Render Zone Boundary Overlays
   function renderZones() {
     zonesLayer.innerHTML = '';
 
@@ -248,15 +256,11 @@
       el.style.top = `${zone.y}%`;
       el.style.width = `${zone.width}%`;
       el.style.height = `${zone.height}%`;
-      el.style.backgroundColor = `${zone.color || '#3b82f6'}33`; // 20% alpha background
-      el.style.borderColor = zone.color || '#3b82f6';
+      el.style.borderColor = `${zone.color || '#3b82f6'}88`;
 
       el.innerHTML = `
         <div class="zone-label-badge" style="border-left: 3px solid ${zone.color || '#3b82f6'};">
           ${escapeHtml(zone.name)}
-        </div>
-        <div class="zone-stalls-count">
-          ${zone.stallCount || 0} ${zone.stallCount === 1 ? 'Stall' : 'Stalls'}
         </div>
       `;
 
@@ -269,9 +273,73 @@
     });
   }
 
-  // Open Zone Details Modal
+  // Render Sensory Direct On-Map Stalls / Booths
+  function renderStalls() {
+    stallsLayer.innerHTML = '';
+
+    activeStalls.forEach(stall => {
+      if (stall.x === null || stall.x === undefined) return;
+
+      const el = document.createElement('div');
+      const statusClass = stall.isAvailable ? 'status-available' : 'status-booked';
+      el.className = `public-stall-hotspot shape-${stall.shape || 'rect'} ${statusClass}`;
+      el.id = `stall-hotspot-${stall.id}`;
+      
+      el.style.left = `${stall.x}%`;
+      el.style.top = `${stall.y}%`;
+      el.style.width = `${stall.width || 6.5}%`;
+      el.style.height = `${stall.height || 6.5}%`;
+
+      if (!stall.isAvailable) {
+        el.style.borderColor = stall.color || '#2563eb';
+      }
+
+      el.innerHTML = `
+        <div class="stall-number-tag">${escapeHtml(stall.stallNumber)}</div>
+        ${stall.companyName ? `<div class="stall-company-sub">${escapeHtml(stall.companyName)}</div>` : ''}
+        ${stall.isAvailable ? '<div class="stall-available-indicator">AVAILABLE</div>' : ''}
+      `;
+
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openSingleStallModal(stall);
+      });
+
+      stallsLayer.appendChild(el);
+    });
+  }
+
+  // Open Single Stall Detail View
+  function openSingleStallModal(stall) {
+    selectedStallId = stall.id;
+
+    modalZoneTitle.textContent = `Stall ${stall.stallNumber}`;
+    modalZoneDesc.textContent = stall.zoneName ? `Located in ${stall.zoneName}` : 'Event Floor Plan Stall';
+    modalZoneColorTag.style.backgroundColor = stall.color || '#2563eb';
+    modalZoneStallCount.textContent = stall.isAvailable ? '🟢 Available for Booking' : '🔵 Booked Booth';
+    modalZoneSearch.style.display = 'none';
+
+    modalStallsList.innerHTML = `
+      <div class="stall-detail-hero">
+        <div>
+          <div class="stall-hero-number">${escapeHtml(stall.stallNumber)}</div>
+          <div class="stall-hero-company">${stall.companyName ? escapeHtml(stall.companyName) : '<span style="color: var(--success); font-weight: 700;">★ Available Booth</span>'}</div>
+          ${stall.category ? `<span class="badge badge-primary" style="margin-top: 6px;">${escapeHtml(stall.category)}</span>` : ''}
+        </div>
+      </div>
+      ${stall.description ? `
+        <div style="background: #ffffff; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; margin-top: 12px;">
+          <div style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Exhibitor Description</div>
+          <p style="font-size: 14px; color: var(--text-main); line-height: 1.5;">${escapeHtml(stall.description)}</p>
+        </div>
+      ` : ''}
+    `;
+
+    zoneModal.classList.add('active');
+  }
+
+  // Open Zone Overview Modal
   async function openZoneModal(zoneId) {
-    selectedZoneId = zoneId;
     const zone = activeZones.find(z => z.id === zoneId);
     if (!zone) return;
 
@@ -279,8 +347,9 @@
     modalZoneDesc.textContent = zone.description || 'No description provided.';
     modalZoneColorTag.style.backgroundColor = zone.color || '#3b82f6';
     modalZoneStallCount.textContent = `${zone.stallCount || 0} Stalls`;
-    modalStallsList.innerHTML = '<div style="text-align: center; padding: 24px; color: var(--text-muted);">Loading stalls...</div>';
+    modalZoneSearch.style.display = 'block';
     modalZoneSearch.value = '';
+    modalStallsList.innerHTML = '<div style="text-align: center; padding: 24px; color: var(--text-muted);">Loading zone stalls...</div>';
 
     zoneModal.classList.add('active');
 
@@ -288,35 +357,30 @@
       const res = await fetch(`/api/public/zones/${zoneId}/stalls`);
       const json = await res.json();
       if (json.success) {
-        currentZoneStalls = json.stalls || [];
-        renderZoneStalls(currentZoneStalls);
-      } else {
-        modalStallsList.innerHTML = `<div style="text-align: center; padding: 24px; color: var(--danger);">${json.error || 'Failed to load stalls.'}</div>`;
+        renderZoneStalls(json.stalls || []);
       }
     } catch (err) {
-      modalStallsList.innerHTML = '<div style="text-align: center; padding: 24px; color: var(--danger);">Network error loading stalls.</div>';
+      modalStallsList.innerHTML = '<div style="text-align: center; padding: 24px; color: var(--danger);">Network error.</div>';
     }
   }
 
-  // Render Stalls inside Modal
   function renderZoneStalls(stalls) {
     if (!stalls || stalls.length === 0) {
       modalStallsList.innerHTML = `
         <div style="text-align: center; padding: 32px 16px; color: var(--text-muted);">
           <div style="font-size: 28px; margin-bottom: 8px;">🏪</div>
-          <div style="font-weight: 600;">No Public Stalls Listed</div>
-          <div style="font-size: 12px; margin-top: 4px;">There are currently no public stalls configured for this zone.</div>
+          <div style="font-weight: 600;">No Public Stalls Listed in this Zone</div>
         </div>
       `;
       return;
     }
 
     modalStallsList.innerHTML = stalls.map(s => `
-      <div class="stall-item-card">
+      <div class="stall-item-card" style="cursor: pointer;" onclick="window.panAndHighlightStall(${s.id}, ${s.x || 0}, ${s.y || 0})">
         <div class="stall-header-row">
           <div style="display: flex; align-items: center; gap: 8px;">
             <span class="stall-badge">${escapeHtml(s.stallNumber)}</span>
-            ${s.companyName ? `<span class="stall-company-name">${escapeHtml(s.companyName)}</span>` : '<span style="font-size: 13px; color: var(--text-muted); font-style: italic;">Exhibitor Info</span>'}
+            ${s.companyName ? `<span class="stall-company-name">${escapeHtml(s.companyName)}</span>` : '<span style="color: var(--success); font-weight: 700; font-size: 13px;">Available Booth</span>'}
           </div>
           ${s.category ? `<span class="stall-category-badge">${escapeHtml(s.category)}</span>` : ''}
         </div>
@@ -325,25 +389,18 @@
     `).join('');
   }
 
-  // Filter Stalls inside Modal Search
-  modalZoneSearch.addEventListener('input', () => {
-    const q = modalZoneSearch.value.trim().toLowerCase();
-    if (!q) {
-      return renderZoneStalls(currentZoneStalls);
-    }
-    const filtered = currentZoneStalls.filter(s => 
-      (s.stallNumber && s.stallNumber.toLowerCase().includes(q)) ||
-      (s.companyName && s.companyName.toLowerCase().includes(q)) ||
-      (s.category && s.category.toLowerCase().includes(q)) ||
-      (s.description && s.description.toLowerCase().includes(q))
-    );
-    renderZoneStalls(filtered);
-  });
+  window.panAndHighlightStall = function(stallId, x, y) {
+    closeModal();
+    document.querySelectorAll('.public-stall-hotspot').forEach(el => el.classList.remove('highlighted'));
+    const el = document.getElementById(`stall-hotspot-${stallId}`);
+    if (el) el.classList.add('highlighted');
+    panToCoords(x, y);
+  };
 
   // Close Modal
   function closeModal() {
     zoneModal.classList.remove('active');
-    selectedZoneId = null;
+    selectedStallId = null;
   }
   modalCloseBtn.addEventListener('click', closeModal);
   modalCloseFooter.addEventListener('click', closeModal);
@@ -358,7 +415,7 @@
     searchDebounce = setTimeout(async () => {
       const q = publicSearchInput.value.trim();
       if (!q) {
-        document.querySelectorAll('.public-zone-hotspot').forEach(el => el.classList.remove('highlighted'));
+        document.querySelectorAll('.public-stall-hotspot, .public-zone-hotspot').forEach(el => el.classList.remove('highlighted'));
         return;
       }
 
@@ -367,12 +424,18 @@
         const json = await res.json();
         if (json.success && json.results.length > 0) {
           const first = json.results[0];
-          document.querySelectorAll('.public-zone-hotspot').forEach(el => el.classList.remove('highlighted'));
+          document.querySelectorAll('.public-stall-hotspot, .public-zone-hotspot').forEach(el => el.classList.remove('highlighted'));
           
-          const hotspot = document.getElementById(`zone-hotspot-${first.zoneId}`);
-          if (hotspot) {
-            hotspot.classList.add('highlighted');
-            panToZone(first.zoneCoords.x, first.zoneCoords.y);
+          const stallEl = document.getElementById(`stall-hotspot-${first.id}`);
+          if (stallEl) {
+            stallEl.classList.add('highlighted');
+            panToCoords(first.coords.x, first.coords.y);
+          } else {
+            const zoneEl = document.getElementById(`zone-hotspot-${first.zoneId}`);
+            if (zoneEl) {
+              zoneEl.classList.add('highlighted');
+              panToCoords(first.coords.x, first.coords.y);
+            }
           }
         }
       } catch (e) {}
@@ -388,13 +451,13 @@
 
     const cat = btn.dataset.category;
     if (cat === 'ALL') {
-      document.querySelectorAll('.public-zone-hotspot').forEach(el => el.classList.remove('highlighted'));
+      document.querySelectorAll('.public-stall-hotspot, .public-zone-hotspot').forEach(el => el.classList.remove('highlighted'));
     } else {
-      // Highlight matching zones
-      activeZones.forEach(z => {
-        const el = document.getElementById(`zone-hotspot-${z.id}`);
+      activeStalls.forEach(s => {
+        const el = document.getElementById(`stall-hotspot-${s.id}`);
         if (el) {
-          if (z.name.toLowerCase().includes(cat.toLowerCase()) || z.description.toLowerCase().includes(cat.toLowerCase())) {
+          if ((s.category && s.category.toLowerCase().includes(cat.toLowerCase())) ||
+              (s.companyName && s.companyName.toLowerCase().includes(cat.toLowerCase()))) {
             el.classList.add('highlighted');
           } else {
             el.classList.remove('highlighted');
@@ -408,61 +471,22 @@
   function initRealtime() {
     const evtSource = new EventSource('/api/realtime/events');
 
-    evtSource.addEventListener('CONNECTED', (e) => {
+    evtSource.addEventListener('CONNECTED', () => {
       statusDot.className = 'status-dot online';
       statusText.textContent = 'Live';
     });
 
-    evtSource.addEventListener('ZONE_UPDATED', (e) => {
-      const data = JSON.parse(e.data);
-      loadZonesData();
-      if (selectedZoneId === data.id) {
-        openZoneModal(data.id);
-      }
-    });
-
-    evtSource.addEventListener('ZONE_CREATED', () => {
-      loadZonesData();
-      showToast('New map zone added by event team', 'info');
-    });
-
-    evtSource.addEventListener('ZONE_DELETED', (e) => {
-      const data = JSON.parse(e.data);
-      loadZonesData();
-      if (selectedZoneId === data.id) {
-        closeModal();
-      }
-    });
-
-    evtSource.addEventListener('STALL_UPDATED', (e) => {
-      const data = JSON.parse(e.data);
-      if (selectedZoneId === data.zoneId) {
-        openZoneModal(data.zoneId);
-      }
-    });
-
-    evtSource.addEventListener('STALL_CREATED', (e) => {
-      const data = JSON.parse(e.data);
-      loadZonesData();
-      if (selectedZoneId === data.zoneId) {
-        openZoneModal(data.zoneId);
-      }
-    });
-
-    evtSource.addEventListener('STALL_DELETED', (e) => {
-      const data = JSON.parse(e.data);
-      loadZonesData();
-      if (selectedZoneId === data.zoneId) {
-        openZoneModal(data.zoneId);
-      }
-    });
-
+    evtSource.addEventListener('STALL_UPDATED', () => loadStallsData());
+    evtSource.addEventListener('STALL_CREATED', () => loadStallsData());
+    evtSource.addEventListener('STALL_DELETED', () => loadStallsData());
+    evtSource.addEventListener('ZONE_UPDATED', () => loadZonesData());
+    evtSource.addEventListener('ZONE_CREATED', () => loadZonesData());
+    evtSource.addEventListener('ZONE_DELETED', () => loadZonesData());
     evtSource.addEventListener('MAP_CHANGED', (e) => {
       const data = JSON.parse(e.data);
       mapImage.src = data.imageUrl;
       if (eventTitle) eventTitle.textContent = data.name;
-      loadZonesData();
-      showToast('Event floor plan updated in real time', 'info');
+      loadMapData();
     });
 
     evtSource.onerror = () => {

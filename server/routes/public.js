@@ -5,13 +5,13 @@ const { db } = require('../db.js');
 function sendJson(res, statusCode, data) {
   res.writeHead(statusCode, {
     'Content-Type': 'application/json',
-    'Cache-Control': 'public, max-age=5', // Short caching for high traffic
+    'Cache-Control': 'public, max-age=3', // Short caching for high traffic
     'Access-Control-Allow-Origin': '*'
   });
   res.end(JSON.stringify(data));
 }
 
-// 1. GET /api/public/map - Get active map info
+// 1. GET /api/public/map - Get active map info and all public stalls & zones
 function handleGetPublicMap(req, res) {
   try {
     const map = db.prepare(`
@@ -49,7 +49,6 @@ function handleGetPublicMap(req, res) {
 // 2. GET /api/public/zones - Get all public zones with public stall counts
 function handleGetPublicZones(req, res) {
   try {
-    // Select active map
     const activeMap = db.prepare('SELECT id FROM maps WHERE is_active = 1 LIMIT 1;').get();
     if (!activeMap) {
       return sendJson(res, 200, { success: true, data: [] });
@@ -100,10 +99,79 @@ function handleGetPublicZones(req, res) {
   }
 }
 
-// 3. GET /api/public/zones/:id/stalls - Get public stalls for a specific zone
+// 3. GET /api/public/stalls - Get all visually placed public stalls on the map
+function handleGetPublicStalls(req, res) {
+  try {
+    // STRICT PROJECTION: Select ONLY public columns for publicly visible stalls
+    // Zero private fields (no contact, phone, email, amount, payment_status, internal_notes)
+    const stalls = db.prepare(`
+      SELECT 
+        s.id,
+        s.zone_id,
+        s.stall_number,
+        s.company_name,
+        s.category,
+        s.public_description,
+        s.public_logo,
+        s.show_company_name,
+        s.show_logo,
+        s.show_category,
+        s.show_description,
+        s.x,
+        s.y,
+        s.width,
+        s.height,
+        s.shape,
+        s.color,
+        s.booking_status,
+        z.name AS zone_name,
+        z.color AS zone_color
+      FROM stalls s
+      JOIN zones z ON s.zone_id = z.id
+      JOIN maps m ON z.map_id = m.id
+      WHERE m.is_active = 1
+        AND z.is_public = 1
+        AND s.public_visible = 1
+      ORDER BY s.stall_number ASC;
+    `).all();
+
+    const sanitized = stalls.map(s => {
+      const isAvailable = (s.booking_status === 'Available');
+      const item = {
+        id: s.id,
+        zoneId: s.zone_id,
+        zoneName: s.zone_name,
+        stallNumber: s.stall_number,
+        x: s.x,
+        y: s.y,
+        width: s.width || 6.5,
+        height: s.height || 6.5,
+        shape: s.shape || 'rect',
+        color: s.color || s.zone_color || '#3b82f6',
+        isAvailable
+      };
+
+      if (s.show_company_name && s.company_name) item.companyName = s.company_name;
+      if (s.show_category && s.category) item.category = s.category;
+      if (s.show_description && s.public_description) item.description = s.public_description;
+      if (s.show_logo && s.public_logo) item.logo = s.public_logo;
+
+      return item;
+    });
+
+    sendJson(res, 200, {
+      success: true,
+      stalls: sanitized
+    });
+  } catch (err) {
+    console.error('[Public API] Error in handleGetPublicStalls:', err);
+    sendJson(res, 500, { success: false, error: 'Failed to retrieve public stalls.' });
+  }
+}
+
+// 4. GET /api/public/zones/:id/stalls - Get public stalls for a specific zone
 function handleGetPublicZoneStalls(req, res, zoneId) {
   try {
-    // Verify zone is public
     const zone = db.prepare(`
       SELECT id, name, is_public, description
       FROM zones
@@ -118,10 +186,9 @@ function handleGetPublicZoneStalls(req, res, zoneId) {
       });
     }
 
-    // STRICT PROJECTION: Select strictly public columns WHERE public_visible = 1
-    // NEVER select contact_person, phone, email, payment_status, payment_amount, booking_status, internal_notes
     const stalls = db.prepare(`
       SELECT 
+        id,
         stall_number,
         company_name,
         category,
@@ -130,30 +197,31 @@ function handleGetPublicZoneStalls(req, res, zoneId) {
         show_company_name,
         show_logo,
         show_category,
-        show_description
+        show_description,
+        booking_status,
+        x, y, width, height, shape, color
       FROM stalls
       WHERE zone_id = ? AND public_visible = 1
       ORDER BY stall_number ASC;
     `).all(zoneId);
 
-    // Sanitize values according to admin-defined public toggle flags
     const sanitizedStalls = stalls.map(s => {
       const stall = {
-        stallNumber: s.stall_number
+        id: s.id,
+        stallNumber: s.stall_number,
+        isAvailable: s.booking_status === 'Available',
+        x: s.x,
+        y: s.y,
+        width: s.width,
+        height: s.height,
+        shape: s.shape,
+        color: s.color
       };
 
-      if (s.show_company_name && s.company_name) {
-        stall.companyName = s.company_name;
-      }
-      if (s.show_category && s.category) {
-        stall.category = s.category;
-      }
-      if (s.show_description && s.public_description) {
-        stall.description = s.public_description;
-      }
-      if (s.show_logo && (s.public_logo || '')) {
-        stall.logo = s.public_logo;
-      }
+      if (s.show_company_name && s.company_name) stall.companyName = s.company_name;
+      if (s.show_category && s.category) stall.category = s.category;
+      if (s.show_description && s.public_description) stall.description = s.public_description;
+      if (s.show_logo && s.public_logo) stall.logo = s.public_logo;
 
       return stall;
     });
@@ -173,7 +241,7 @@ function handleGetPublicZoneStalls(req, res, zoneId) {
   }
 }
 
-// 4. GET /api/public/search?q=... - Search public stalls & zones
+// 5. GET /api/public/search?q=... - Search public stalls & zones
 function handlePublicSearch(req, res, query) {
   try {
     if (!query || query.trim().length === 0) {
@@ -184,6 +252,7 @@ function handlePublicSearch(req, res, query) {
 
     const results = db.prepare(`
       SELECT 
+        s.id,
         s.stall_number,
         s.company_name,
         s.category,
@@ -191,6 +260,8 @@ function handlePublicSearch(req, res, query) {
         s.show_company_name,
         s.show_category,
         s.show_description,
+        s.x AS stall_x,
+        s.y AS stall_y,
         z.id AS zone_id,
         z.name AS zone_name,
         z.x AS zone_x,
@@ -213,10 +284,14 @@ function handlePublicSearch(req, res, query) {
 
     const sanitizedResults = results.map(r => {
       const item = {
+        id: r.id,
         stallNumber: r.stall_number,
         zoneId: r.zone_id,
         zoneName: r.zone_name,
-        zoneCoords: { x: r.zone_x, y: r.zone_y }
+        coords: {
+          x: r.stall_x !== null ? r.stall_x : r.zone_x,
+          y: r.stall_y !== null ? r.stall_y : r.zone_y
+        }
       };
       if (r.show_company_name && r.company_name) item.companyName = r.company_name;
       if (r.show_category && r.category) item.category = r.category;
@@ -237,6 +312,7 @@ function handlePublicSearch(req, res, query) {
 module.exports = {
   handleGetPublicMap,
   handleGetPublicZones,
+  handleGetPublicStalls,
   handleGetPublicZoneStalls,
   handlePublicSearch
 };
