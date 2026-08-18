@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Interactive Event Stall Map</title>
+  <link rel="stylesheet" href="/css/common.css">
+  <link rel="stylesheet" href="/css/public.css">
+</head>
+<body>
+  <!-- Header Bar -->
+  <header class="public-header">
+    <div class="brand-section">
+      <div class="brand-logo">📍</div>
+      <div>
+        <h1 class="brand-title" id="event-title">Expo Convention Event Map</h1>
+        <div class="brand-subtitle">Interactive Stall Plan &amp; Directory</div>
+      </div>
+    </div>
+
+    <!-- Category Filters -->
+    <div class="category-bar" id="category-bar">
+      <button class="category-chip active" data-category="ALL">All Stalls</button>
+      <button class="category-chip" data-category="Robotics & AI">🤖 Robotics &amp; AI</button>
+      <button class="category-chip" data-category="Cloud & DevOps">☁️ Cloud</button>
+      <button class="category-chip" data-category="Food & Dining">☕ Food &amp; Beverage</button>
+      <button class="category-chip" data-category="Sponsors">⭐ Sponsors</button>
+    </div>
+
+    <!-- Actions & Live Status -->
+    <div class="header-actions">
+      <!-- Search Input -->
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="public-search-input" placeholder="Search stall, company, category..." autocomplete="off">
+      </div>
+
+      <!-- Realtime Live Badge -->
+      <div class="status-indicator" id="realtime-status-badge">
+        <span class="status-dot connecting" id="status-dot"></span>
+        <span id="status-text">Connecting...</span>
+      </div>
+
+      <!-- Admin Login Link -->
+      <a href="/admin" class="btn btn-secondary btn-sm" title="Admin Portal">🔒 Admin</a>
+    </div>
+  </header>
+
+  <!-- Interactive Map Viewport -->
+  <main class="map-viewport-container" id="map-viewport">
+    <div class="map-stage" id="map-stage">
+      <div class="map-image-wrapper" id="map-wrapper">
+        <img id="map-image" src="/assets/default-floorplan.svg" alt="Event Floor Plan">
+        <!-- Interactive Zones Layer -->
+        <div class="zones-overlay-layer" id="zones-layer"></div>
+      </div>
+    </div>
+
+    <!-- Floating Zoom Controls -->
+    <div class="map-controls-floating">
+      <button class="map-control-btn" id="btn-zoom-in" title="Zoom In">+</button>
+      <button class="map-control-btn" id="btn-zoom-out" title="Zoom Out">−</button>
+      <button class="map-control-btn" id="btn-fit-screen" title="Fit to Screen" style="font-size: 14px;">⛶</button>
+      <button class="map-control-btn" id="btn-reset-zoom" title="Reset View" style="font-size: 13px;">1:1</button>
+    </div>
+
+    <!-- Floating Helper Pill -->
+    <div class="map-info-pill">
+      <span>💡</span>
+      <span>Click any highlighted zone on the map to explore stalls &amp; exhibitors</span>
+    </div>
+  </main>
+
+  <!-- Public Zone Details Modal -->
+  <div class="modal-overlay" id="zone-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div id="modal-zone-color-tag" style="width: 12px; height: 12px; border-radius: 50%; background: #3b82f6;"></div>
+          <div>
+            <h3 id="modal-zone-title" style="font-size: 17px; margin-bottom: 2px;">Zone Details</h3>
+            <span class="badge badge-primary" id="modal-zone-stall-count">0 Stalls</span>
+          </div>
+        </div>
+        <button class="modal-close" id="modal-zone-close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <p id="modal-zone-desc" style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;"></p>
+
+        <!-- Search inside zone -->
+        <div style="margin-bottom: 14px;">
+          <input type="text" id="modal-zone-search" class="form-input" placeholder="Filter stalls in this zone...">
+        </div>
+
+        <!-- Stalls List Container -->
+        <div id="modal-stalls-list">
+          <div style="text-align: center; padding: 24px; color: var(--text-muted);">Loading stalls...</div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-sm" id="btn-modal-close-footer">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="/js/public-map.js"></script>
+</body>
+</html>

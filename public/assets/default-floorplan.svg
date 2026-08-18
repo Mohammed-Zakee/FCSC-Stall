@@ -1,0 +1,174 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" width="100%" height="100%">
+  <defs>
+    <!-- Background Grid Pattern -->
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#e2e8f0" stroke-width="1" opacity="0.6"/>
+    </pattern>
+    <pattern id="grid-dense" width="10" height="10" patternUnits="userSpaceOnUse">
+      <path d="M 10 0 L 0 0 0 10" fill="none" stroke="#cbd5e1" stroke-width="0.5" opacity="0.3"/>
+    </pattern>
+    
+    <!-- Gradients -->
+    <linearGradient id="hall-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f8fafc"/>
+    </linearGradient>
+
+    <linearGradient id="stage-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+
+    <linearGradient id="zone-a-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#eff6ff"/>
+      <stop offset="100%" stop-color="#dbeafe"/>
+    </linearGradient>
+
+    <linearGradient id="zone-b-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fffbeb"/>
+      <stop offset="100%" stop-color="#fef3c7"/>
+    </linearGradient>
+
+    <linearGradient id="zone-c-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ecfdf5"/>
+      <stop offset="100%" stop-color="#d1fae5"/>
+    </linearGradient>
+
+    <!-- Drop Shadow Filter -->
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#0f172a" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <!-- Canvas Outer Background -->
+  <rect width="1600" height="1000" fill="#f1f5f9"/>
+
+  <!-- Main Exhibition Hall Floor Boundary -->
+  <rect x="60" y="50" width="1480" height="900" rx="24" fill="url(#hall-bg)" stroke="#94a3b8" stroke-width="3" filter="url(#shadow)"/>
+  
+  <!-- Architectural Grid Layer -->
+  <rect x="60" y="50" width="1480" height="900" rx="24" fill="url(#grid-dense)"/>
+  <rect x="60" y="50" width="1480" height="900" rx="24" fill="url(#grid)"/>
+
+  <!-- Hall Header / Title Bar -->
+  <g transform="translate(100, 90)">
+    <rect x="0" y="0" width="340" height="38" rx="8" fill="#0f172a"/>
+    <text x="16" y="24" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#ffffff" letter-spacing="1.5">EXPO CONVENTION CENTER</text>
+    <text x="355" y="24" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="600" fill="#64748b">HALL A · LEVEL 1 FLOOR PLAN</text>
+  </g>
+
+  <!-- North Compass Indicator -->
+  <g transform="translate(1450, 90)">
+    <circle cx="20" cy="20" r="18" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+    <polygon points="20,8 14,24 20,20 26,24" fill="#0f172a"/>
+    <text x="16" y="36" font-family="sans-serif" font-size="10" font-weight="bold" fill="#64748b">N</text>
+  </g>
+
+  <!-- ==================== ARCHITECTURAL AREAS ==================== -->
+
+  <!-- ZONE A: Tech Pavilion Area Graphic -->
+  <g transform="translate(200, 180)">
+    <rect x="0" y="0" width="384" height="320" rx="16" fill="url(#zone-a-grad)" stroke="#93c5fd" stroke-width="2" stroke-dasharray="6,4"/>
+    <rect x="16" y="16" width="140" height="26" rx="6" fill="#2563eb"/>
+    <text x="26" y="34" font-family="sans-serif" font-size="12" font-weight="700" fill="#ffffff" letter-spacing="0.5">TECH PAVILION</text>
+    
+    <!-- Sub-booth outlines -->
+    <rect x="24" y="60" width="150" height="100" rx="8" fill="#ffffff" stroke="#bfdbfe" stroke-width="1.5"/>
+    <text x="40" y="100" font-family="sans-serif" font-size="13" font-weight="600" fill="#1e40af">STALL A-01</text>
+    <text x="40" y="120" font-family="sans-serif" font-size="11" fill="#64748b">Quantum Robotics</text>
+
+    <rect x="200" y="60" width="150" height="100" rx="8" fill="#ffffff" stroke="#bfdbfe" stroke-width="1.5"/>
+    <text x="216" y="100" font-family="sans-serif" font-size="13" font-weight="600" fill="#1e40af">STALL A-02</text>
+    <text x="216" y="120" font-family="sans-serif" font-size="11" fill="#64748b">CloudScale Infra</text>
+
+    <rect x="24" y="185" width="150" height="100" rx="8" fill="#ffffff" stroke="#bfdbfe" stroke-width="1.5"/>
+    <text x="40" y="225" font-family="sans-serif" font-size="13" font-weight="600" fill="#1e40af">STALL A-03</text>
+    <text x="40" y="245" font-family="sans-serif" font-size="11" fill="#64748b">CyberShield</text>
+
+    <rect x="200" y="185" width="150" height="100" rx="8" fill="#ffffff" stroke="#bfdbfe" stroke-width="1.5" stroke-dasharray="4,4"/>
+    <text x="216" y="225" font-family="sans-serif" font-size="13" font-weight="600" fill="#059669">STALL A-04</text>
+    <text x="216" y="245" font-family="sans-serif" font-size="11" font-style="italic" fill="#059669">Available</text>
+  </g>
+
+  <!-- ZONE B: Food & Beverage Area Graphic -->
+  <g transform="translate(1016, 180)">
+    <rect x="0" y="0" width="384" height="320" rx="16" fill="url(#zone-b-grad)" stroke="#fcd34d" stroke-width="2" stroke-dasharray="6,4"/>
+    <rect x="16" y="16" width="160" height="26" rx="6" fill="#d97706"/>
+    <text x="26" y="34" font-family="sans-serif" font-size="12" font-weight="700" fill="#ffffff" letter-spacing="0.5">FOOD &amp; DINING COURT</text>
+    
+    <!-- Sub-booth outlines -->
+    <rect x="24" y="60" width="150" height="100" rx="8" fill="#ffffff" stroke="#fed7aa" stroke-width="1.5"/>
+    <text x="40" y="100" font-family="sans-serif" font-size="13" font-weight="600" fill="#9a3412">STALL B-01</text>
+    <text x="40" y="120" font-family="sans-serif" font-size="11" fill="#64748b">Artisan Roast</text>
+
+    <rect x="200" y="60" width="150" height="100" rx="8" fill="#ffffff" stroke="#fed7aa" stroke-width="1.5"/>
+    <text x="216" y="100" font-family="sans-serif" font-size="13" font-weight="600" fill="#9a3412">STALL B-02</text>
+    <text x="216" y="120" font-family="sans-serif" font-size="11" fill="#64748b">Urban Green Kitchen</text>
+
+    <rect x="24" y="185" width="150" height="100" rx="8" fill="#ffffff" stroke="#fed7aa" stroke-width="1.5"/>
+    <text x="40" y="225" font-family="sans-serif" font-size="13" font-weight="600" fill="#9a3412">STALL B-03</text>
+    <text x="40" y="245" font-family="sans-serif" font-size="11" fill="#64748b">Sweet Wave Gelato</text>
+
+    <rect x="200" y="185" width="150" height="100" rx="8" fill="#fef2f2" stroke="#fecaca" stroke-width="1.5"/>
+    <text x="235" y="235" font-family="sans-serif" font-size="12" font-weight="600" fill="#dc2626">Dining Lounge</text>
+    <text x="235" y="255" font-family="sans-serif" font-size="11" fill="#991b1b">Seating Area</text>
+  </g>
+
+  <!-- ZONE C: Main Stage Sponsor Arena Graphic -->
+  <g transform="translate(512, 600)">
+    <rect x="0" y="0" width="576" height="260" rx="20" fill="url(#zone-c-grad)" stroke="#6ee7b7" stroke-width="2"/>
+    <rect x="24" y="20" width="200" height="28" rx="6" fill="#059669"/>
+    <text x="36" y="39" font-family="sans-serif" font-size="13" font-weight="700" fill="#ffffff" letter-spacing="0.5">MAIN STAGE SPONSORS</text>
+
+    <!-- VIP-1 & VIP-2 -->
+    <rect x="30" y="68" width="240" height="160" rx="12" fill="#ffffff" stroke="#a7f3d0" stroke-width="2"/>
+    <text x="50" y="110" font-family="sans-serif" font-size="14" font-weight="700" fill="#065f46">STALL VIP-01</text>
+    <text x="50" y="135" font-family="sans-serif" font-size="12" font-weight="600" fill="#0f172a">Apex Global Telecom</text>
+    <rect x="50" y="155" width="120" height="22" rx="4" fill="#d1fae5"/>
+    <text x="58" y="170" font-family="sans-serif" font-size="10" font-weight="bold" fill="#065f46">★ PLATINUM PARTNER</text>
+
+    <rect x="306" y="68" width="240" height="160" rx="12" fill="#ffffff" stroke="#a7f3d0" stroke-width="2"/>
+    <text x="326" y="110" font-family="sans-serif" font-size="14" font-weight="700" fill="#065f46">STALL VIP-02</text>
+    <text x="326" y="135" font-family="sans-serif" font-size="12" font-weight="600" fill="#0f172a">Nexus Fintech Holdings</text>
+    <rect x="326" y="155" width="105" height="22" rx="4" fill="#fef3c7"/>
+    <text x="334" y="170" font-family="sans-serif" font-size="10" font-weight="bold" fill="#92400e">★ GOLD PARTNER</text>
+  </g>
+
+  <!-- Center Stage Graphic -->
+  <g transform="translate(620, 180)">
+    <rect x="0" y="0" width="360" height="200" rx="16" fill="url(#stage-grad)" stroke="#4f46e5" stroke-width="2" filter="url(#shadow)"/>
+    <text x="180" y="80" text-anchor="middle" font-family="sans-serif" font-size="18" font-weight="800" fill="#ffffff" letter-spacing="2">★ GRAND MAIN STAGE ★</text>
+    <text x="180" y="110" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="500" fill="#e0e7ff">Keynotes · Product Launches · Ceremonies</text>
+    <rect x="60" y="140" width="240" height="30" rx="8" fill="rgba(255,255,255,0.2)"/>
+    <text x="180" y="160" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="600" fill="#ffffff">AV &amp; Broadcast Center</text>
+  </g>
+
+  <!-- Walkways and Aisle Markings -->
+  <g stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="8,6" opacity="0.6">
+    <!-- Main central corridor -->
+    <line x1="800" y1="390" x2="800" y2="590"/>
+    <line x1="200" y1="530" x2="1400" y2="530"/>
+  </g>
+  <text x="800" y="490" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="600" fill="#94a3b8" letter-spacing="3">MAIN CENTRAL AISLE</text>
+
+  <!-- Entrance / Exit Doors and Amenities -->
+  <g transform="translate(100, 890)">
+    <rect x="0" y="0" width="140" height="36" rx="6" fill="#10b981"/>
+    <text x="70" y="22" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="700" fill="#ffffff">MAIN ENTRANCE</text>
+  </g>
+
+  <g transform="translate(1360, 890)">
+    <rect x="0" y="0" width="140" height="36" rx="6" fill="#0284c7"/>
+    <text x="70" y="22" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="700" fill="#ffffff">EAST EXIT &amp; TAXI</text>
+  </g>
+
+  <g transform="translate(100, 480)">
+    <rect x="0" y="0" width="80" height="28" rx="4" fill="#64748b"/>
+    <text x="40" y="18" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="600" fill="#ffffff">INFO DESK</text>
+  </g>
+
+  <g transform="translate(1420, 480)">
+    <rect x="0" y="0" width="80" height="28" rx="4" fill="#64748b"/>
+    <text x="40" y="18" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="600" fill="#ffffff">RESTROOMS</text>
+  </g>
+</svg>

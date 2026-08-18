@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Portal Login | Stall Management System</title>
+  <link rel="stylesheet" href="/css/common.css">
+  <style>
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 50% 10%, #1e293b 0%, #0f172a 100%);
+      padding: 20px;
+    }
+
+    .login-container {
+      width: 100%;
+      max-width: 420px;
+      background: #ffffff;
+      border-radius: var(--radius-lg);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      padding: 36px 32px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .brand-header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .login-logo {
+      width: 52px;
+      height: 52px;
+      margin: 0 auto 14px;
+      background: linear-gradient(135deg, #2563eb, #7c3aed);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      color: #ffffff;
+      box-shadow: 0 8px 16px rgba(37, 99, 235, 0.3);
+    }
+
+    .login-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .login-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .demo-box {
+      background: #f8fafc;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+    }
+
+    .error-alert {
+      background: var(--danger-light);
+      border: 1px solid var(--danger-border);
+      color: #991b1b;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 18px;
+      display: none;
+    }
+
+    .btn-submit {
+      width: 100%;
+      padding: 11px;
+      font-size: 15px;
+      margin-top: 8px;
+    }
+
+    .back-link {
+      display: block;
+      text-align: center;
+      margin-top: 20px;
+      font-size: 13px;
+      color: var(--text-muted);
+      text-decoration: none;
+    }
+    .back-link:hover {
+      color: var(--primary);
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="brand-header">
+      <div class="login-logo">🔒</div>
+      <h1 class="login-title">Administrator Portal</h1>
+      <p class="login-subtitle">Sign in to manage floor plans, zones, and stall bookings</p>
+    </div>
+
+    <!-- Quick Demo Credentials Fill -->
+    <div class="demo-box">
+      <div>
+        <div style="font-weight: 600; color: var(--text-main);">Demo Administrator</div>
+        <div style="color: var(--text-muted); font-family: monospace; font-size: 11px;">admin@event.com / Admin@123456</div>
+      </div>
+      <button type="button" class="btn btn-secondary btn-sm" id="btn-fill-demo" style="padding: 4px 8px; font-size: 11px;">Auto Fill</button>
+    </div>
+
+    <div class="error-alert" id="error-alert"></div>
+
+    <form id="login-form">
+      <div class="form-group">
+        <label class="form-label" for="email">Email Address <span class="required">*</span></label>
+        <input type="email" id="email" class="form-input" placeholder="admin@event.com" required autocomplete="email" autofocus>
+      </div>
+
+      <div class="form-group">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <label class="form-label" for="password" style="margin-bottom: 0;">Password <span class="required">*</span></label>
+          <button type="button" id="btn-toggle-pwd" style="background: none; border: none; font-size: 12px; color: var(--primary); cursor: pointer;">Show</button>
+        </div>
+        <input type="password" id="password" class="form-input" placeholder="••••••••••••" required autocomplete="current-password">
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-submit" id="btn-submit">Sign In to Dashboard</button>
+    </form>
+
+    <a href="/map" class="back-link">← Return to Public Map</a>
+  </div>
+
+  <script>
+    (function() {
+      // Check if already authenticated
+      fetch('/api/admin/auth/me')
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.user) {
+            window.location.href = '/admin';
+          }
+        }).catch(() => {});
+
+      const form = document.getElementById('login-form');
+      const emailInput = document.getElementById('email');
+      const passwordInput = document.getElementById('password');
+      const errorAlert = document.getElementById('error-alert');
+      const btnSubmit = document.getElementById('btn-submit');
+      const btnFillDemo = document.getElementById('btn-fill-demo');
+      const btnTogglePwd = document.getElementById('btn-toggle-pwd');
+
+      btnFillDemo.addEventListener('click', () => {
+        emailInput.value = 'admin@event.com';
+        passwordInput.value = 'Admin@123456';
+      });
+
+      btnTogglePwd.addEventListener('click', () => {
+        if (passwordInput.type === 'password') {
+          passwordInput.type = 'text';
+          btnTogglePwd.textContent = 'Hide';
+        } else {
+          passwordInput.type = 'password';
+          btnTogglePwd.textContent = 'Show';
+        }
+      });
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        errorAlert.style.display = 'none';
+        btnSubmit.disabled = true;
+        btnSubmit.textContent = 'Signing in...';
+
+        try {
+          const res = await fetch('/api/admin/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: emailInput.value.trim(),
+              password: passwordInput.value
+            })
+          });
+
+          const json = await res.json();
+          if (json.success) {
+            window.location.href = '/admin';
+          } else {
+            errorAlert.textContent = json.error || 'Authentication failed. Please check your credentials.';
+            errorAlert.style.display = 'block';
+          }
+        } catch (err) {
+          errorAlert.textContent = 'Network or server error during sign in.';
+          errorAlert.style.display = 'block';
+        } finally {
+          btnSubmit.disabled = false;
+          btnSubmit.textContent = 'Sign In to Dashboard';
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

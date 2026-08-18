@@ -1,0 +1,11 @@
+{
+  "name": "fcsc-stall-plan",
+  "version": "1.0.0",
+  "description": "Production-Ready Interactive Stall Management & Interactive Map System",
+  "main": "server/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  }
+}

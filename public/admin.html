@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard &amp; Map Editor | Stall Management System</title>
+  <link rel="stylesheet" href="/css/common.css">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body class="admin-body">
+  <!-- Left Sidebar Navigation -->
+  <aside class="admin-sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-logo">📍</div>
+      <div>
+        <div class="sidebar-title">StallPlan Pro</div>
+        <span class="sidebar-badge">ADMIN SUITE</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-title">Main Menu</div>
+      <a class="nav-item active" data-tab="tab-dashboard">
+        <span class="nav-icon">📊</span>
+        <span>Dashboard</span>
+      </a>
+      <a class="nav-item" data-tab="tab-editor">
+        <span class="nav-icon">🗺️</span>
+        <span>Map &amp; Zone Editor</span>
+      </a>
+      <a class="nav-item" data-tab="tab-stalls">
+        <span class="nav-icon">🏪</span>
+        <span>Stall Database</span>
+      </a>
+      <a class="nav-item" data-tab="tab-zones">
+        <span class="nav-icon">📍</span>
+        <span>Zones Overview</span>
+      </a>
+
+      <div class="nav-section-title">System</div>
+      <a class="nav-item" data-tab="tab-audit">
+        <span class="nav-icon">📜</span>
+        <span>Audit Logs</span>
+      </a>
+      <a class="nav-item" data-tab="tab-settings">
+        <span class="nav-icon">⚙️</span>
+        <span>Settings &amp; Security</span>
+      </a>
+    </nav>
+
+    <!-- Sidebar User Section -->
+    <div class="sidebar-user">
+      <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
+        <div class="user-avatar" id="user-avatar-initials">AD</div>
+        <div style="overflow: hidden;">
+          <div id="sidebar-user-name" style="font-size: 13px; font-weight: 700; color: #ffffff; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">Administrator</div>
+          <div id="sidebar-user-email" style="font-size: 11px; color: #94a3b8; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">admin@event.com</div>
+        </div>
+      </div>
+      <button class="btn btn-secondary btn-icon btn-sm" id="btn-logout" title="Sign Out" style="background: rgba(255,255,255,0.1); border: none; color: #ffffff;">🚪</button>
+    </div>
+  </aside>
+
+  <!-- Main Content Wrapper -->
+  <div class="admin-main-wrapper">
+    <!-- Top Bar -->
+    <header class="admin-topbar">
+      <div class="topbar-left">
+        <h2 class="page-title" id="current-page-title">Dashboard Overview</h2>
+      </div>
+
+      <div class="topbar-right">
+        <!-- Live Realtime Badge -->
+        <div class="status-indicator" id="admin-realtime-badge">
+          <span class="status-dot online" id="admin-status-dot"></span>
+          <span id="admin-status-text">Live Sync</span>
+        </div>
+
+        <!-- Preview Public Map Button -->
+        <button class="btn btn-secondary btn-sm" id="btn-preview-public" title="Preview Public Map View">
+          👁️ Preview Public Map
+        </button>
+
+        <!-- Quick Add Stall -->
+        <button class="btn btn-primary btn-sm" id="btn-quick-add-stall">
+          + Add Stall
+        </button>
+      </div>
+    </header>
+
+    <!-- Tab Panes Container -->
+    <div class="tab-content-container">
+      
+      <!-- ==================== 1. DASHBOARD TAB ==================== -->
+      <div class="tab-pane active" id="tab-dashboard">
+        <div class="dashboard-grid">
+          <!-- Metric Stat Cards -->
+          <div class="stats-card-grid">
+            <div class="stat-card">
+              <div class="stat-label">Total Stalls</div>
+              <div class="stat-value" id="stat-total-stalls">0</div>
+              <div class="stat-sub" id="stat-stalls-sub">0 Booked · 0 Available</div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-label">Occupancy Rate</div>
+              <div class="stat-value" id="stat-occupancy-rate">0%</div>
+              <div class="stat-sub" id="stat-occupancy-sub">Target: 95%</div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-label">Total Revenue (Paid)</div>
+              <div class="stat-value" id="stat-total-revenue" style="color: var(--success);">$0.00</div>
+              <div class="stat-sub" id="stat-pending-revenue">Pending: $0.00</div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-label">Interactive Zones</div>
+              <div class="stat-value" id="stat-total-zones">0</div>
+              <div class="stat-sub" id="stat-zones-sub">0 Public · 0 Internal</div>
+            </div>
+          </div>
+
+          <!-- Dashboard Content Row -->
+          <div class="dashboard-row">
+            <!-- Left: Quick Actions & Stalls Overview -->
+            <div class="content-card">
+              <div class="content-card-header">
+                <h3 style="font-size: 15px;">Quick Launch Shortcuts</h3>
+              </div>
+              <div class="content-card-body" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                <div style="border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; cursor: pointer; transition: all 0.15s ease;" onclick="switchTab('tab-editor')">
+                  <div style="font-size: 24px; margin-bottom: 8px;">🗺️</div>
+                  <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">Figma-Style Map Editor</div>
+                  <div style="font-size: 12px; color: var(--text-muted);">Place, drag, resize interactive zones &amp; hotspots.</div>
+                </div>
+
+                <div style="border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; cursor: pointer; transition: all 0.15s ease;" onclick="openAddStallModal()">
+                  <div style="font-size: 24px; margin-bottom: 8px;">🏪</div>
+                  <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">Add New Stall</div>
+                  <div style="font-size: 12px; color: var(--text-muted);">Assign stall number, company, payment, and public info.</div>
+                </div>
+
+                <div style="border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; cursor: pointer; transition: all 0.15s ease;" onclick="openCsvImportModal()">
+                  <div style="font-size: 24px; margin-bottom: 8px;">📑</div>
+                  <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">Bulk CSV Import</div>
+                  <div style="font-size: 12px; color: var(--text-muted);">Batch import multiple stalls with validation preview.</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: Real-time Activity Timeline -->
+            <div class="content-card">
+              <div class="content-card-header">
+                <h3 style="font-size: 15px;">Recent Audit Activity</h3>
+                <button class="btn btn-secondary btn-sm" onclick="switchTab('tab-audit')">View All</button>
+              </div>
+              <div class="content-card-body" id="dashboard-recent-activity" style="padding: 12px 20px;">
+                <div style="color: var(--text-muted); font-size: 13px;">Loading activity...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== 2. FIGMA-STYLE MAP EDITOR TAB ==================== -->
+      <div class="tab-pane" id="tab-editor">
+        <!-- Editor Toolbar -->
+        <div class="editor-toolbar">
+          <!-- Tool Selection -->
+          <div class="toolbar-group">
+            <button class="tool-btn active" id="tool-select" title="Select &amp; Transform Hotspot">
+              <span>↖</span> Select / Move
+            </button>
+            <button class="tool-btn" id="tool-add-rect" title="Add Rectangle Zone">
+              <span>▢</span> Rect Zone
+            </button>
+            <button class="tool-btn" id="tool-add-rounded" title="Add Rounded Rect Zone">
+              <span>▢</span> Rounded Zone
+            </button>
+            <button class="tool-btn" id="tool-add-circle" title="Add Circular Zone">
+              <span>○</span> Circle Zone
+            </button>
+            <button class="tool-btn" id="tool-pan" title="Pan Map Viewport">
+              <span>✋</span> Pan
+            </button>
+          </div>
+
+          <!-- Canvas Controls & Upload -->
+          <div class="toolbar-group">
+            <button class="btn btn-secondary btn-sm" id="btn-editor-zoom-in">+</button>
+            <button class="btn btn-secondary btn-sm" id="btn-editor-zoom-out">−</button>
+            <button class="btn btn-secondary btn-sm" id="btn-editor-fit">⛶ Fit</button>
+            <button class="btn btn-secondary btn-sm" id="btn-editor-reset">1:1</button>
+            <div style="height: 20px; width: 1px; background: var(--border); margin: 0 4px;"></div>
+            <button class="btn btn-secondary btn-sm" id="btn-open-upload-map">📁 Upload New Map</button>
+          </div>
+        </div>
+
+        <!-- Editor Main Layout: Canvas + Inspector Sidebar -->
+        <div class="editor-layout">
+          <!-- Canvas Viewport -->
+          <div class="editor-canvas-container" id="editor-canvas-viewport">
+            <div class="editor-stage" id="editor-stage">
+              <div class="editor-map-wrapper" id="editor-map-wrapper">
+                <img id="editor-map-img" src="/assets/default-floorplan.svg" alt="Editor Floor Plan">
+                <!-- Zones Editable Layer -->
+                <div class="editor-zones-layer" id="editor-zones-layer"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Properties Inspector -->
+          <aside class="editor-sidebar-inspector" id="editor-inspector">
+            <div class="inspector-header">
+              <span id="inspector-title">Zone Properties</span>
+              <span class="badge badge-primary" id="inspector-badge">Selected</span>
+            </div>
+
+            <div class="inspector-body" id="inspector-form-container">
+              <!-- Empty Selection State -->
+              <div id="inspector-empty-state" style="text-align: center; padding: 40px 10px; color: var(--text-muted);">
+                <div style="font-size: 32px; margin-bottom: 8px;">↖</div>
+                <div style="font-weight: 600; font-size: 14px; color: var(--text-main);">No Zone Selected</div>
+                <div style="font-size: 12px; margin-top: 4px;">Click any zone in the canvas or add a new zone from the toolbar to edit properties.</div>
+              </div>
+
+              <!-- Active Inspector Form -->
+              <form id="inspector-form" style="display: none;">
+                <div class="form-group">
+                  <label class="form-label">Zone Name <span class="required">*</span></label>
+                  <input type="text" id="prop-zone-name" class="form-input" required>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Shape</label>
+                  <select id="prop-zone-shape" class="form-select">
+                    <option value="rect">Rectangle</option>
+                    <option value="rounded_rect">Rounded Rectangle</option>
+                    <option value="circle">Circle</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Zone Color</label>
+                  <div style="display: flex; gap: 8px; align-items: center;">
+                    <input type="color" id="prop-zone-color" style="width: 44px; height: 36px; padding: 2px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer;">
+                    <input type="text" id="prop-zone-color-hex" class="form-input" style="flex: 1; font-family: monospace;">
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Position &amp; Dimensions (% Relative to Map)</label>
+                  <div class="coords-grid">
+                    <div>
+                      <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">X (%)</span>
+                      <input type="number" id="prop-zone-x" class="form-input" step="0.1" min="0" max="100">
+                    </div>
+                    <div>
+                      <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Y (%)</span>
+                      <input type="number" id="prop-zone-y" class="form-input" step="0.1" min="0" max="100">
+                    </div>
+                    <div>
+                      <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Width (%)</span>
+                      <input type="number" id="prop-zone-w" class="form-input" step="0.1" min="1" max="100">
+                    </div>
+                    <div>
+                      <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Height (%)</span>
+                      <input type="number" id="prop-zone-h" class="form-input" step="0.1" min="1" max="100">
+                    </div>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <div class="toggle-switch-wrapper">
+                    <div>
+                      <div style="font-weight: 600; font-size: 13px;">Public Visibility</div>
+                      <div style="font-size: 11px; color: var(--text-muted);">Visible on public map viewer</div>
+                    </div>
+                    <label class="toggle-switch">
+                      <input type="checkbox" id="prop-zone-public" checked>
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Zone Public Description</label>
+                  <textarea id="prop-zone-desc" class="form-textarea" placeholder="Description shown in public popup..."></textarea>
+                </div>
+
+                <!-- Zone Actions -->
+                <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 20px;">
+                  <button type="button" class="btn btn-primary" id="btn-save-zone-props">Save Zone Changes</button>
+                  <div style="display: flex; gap: 8px;">
+                    <button type="button" class="btn btn-secondary" id="btn-duplicate-zone" style="flex: 1;">Duplicate</button>
+                    <button type="button" class="btn btn-danger" id="btn-delete-zone" style="flex: 1;">Delete</button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      <!-- ==================== 3. STALLS DATABASE TAB ==================== -->
+      <div class="tab-pane" id="tab-stalls">
+        <div class="table-view-container">
+          <!-- Filters & Actions Header -->
+          <div class="table-filter-bar">
+            <div class="table-filters-left">
+              <!-- Search -->
+              <input type="text" id="stall-search-input" class="form-input" placeholder="🔍 Search stall, company, contact..." style="width: 260px;">
+              
+              <!-- Zone Filter -->
+              <select id="stall-zone-filter" class="form-select" style="width: 170px;">
+                <option value="">All Zones</option>
+              </select>
+
+              <!-- Booking Status Filter -->
+              <select id="stall-booking-filter" class="form-select" style="width: 140px;">
+                <option value="">All Statuses</option>
+                <option value="Available">Available</option>
+                <option value="Booked">Booked</option>
+                <option value="Reserved">Reserved</option>
+                <option value="Blocked">Blocked</option>
+              </select>
+
+              <!-- Payment Status Filter -->
+              <select id="stall-payment-filter" class="form-select" style="width: 140px;">
+                <option value="">All Payments</option>
+                <option value="Paid">Paid</option>
+                <option value="Pending">Pending</option>
+                <option value="Unpaid">Unpaid</option>
+              </select>
+
+              <!-- Public Visibility Filter -->
+              <select id="stall-public-filter" class="form-select" style="width: 130px;">
+                <option value="">All Visibility</option>
+                <option value="1">Public Only</option>
+                <option value="0">Private Only</option>
+              </select>
+            </div>
+
+            <!-- Stalls Action Buttons -->
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-secondary btn-sm" id="btn-export-csv" title="Export Stalls to CSV">📥 Export CSV</button>
+              <button class="btn btn-secondary btn-sm" id="btn-import-csv" title="Import Stalls from CSV">📑 Import CSV</button>
+              <button class="btn btn-primary btn-sm" id="btn-add-stall">+ Add Stall</button>
+            </div>
+          </div>
+
+          <!-- Stalls Data Table -->
+          <div class="data-table-card">
+            <table class="data-table" id="stalls-table">
+              <thead>
+                <tr>
+                  <th>Stall #</th>
+                  <th>Zone</th>
+                  <th>Company / Exhibitor</th>
+                  <th>Category</th>
+                  <th>Booking Status</th>
+                  <th>Payment Status</th>
+                  <th>Amount</th>
+                  <th>Public Vis</th>
+                  <th style="text-align: right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="stalls-table-body">
+                <tr>
+                  <td colspan="9" style="text-align: center; padding: 32px; color: var(--text-muted);">Loading stalls database...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== 4. ZONES OVERVIEW TAB ==================== -->
+      <div class="tab-pane" id="tab-zones">
+        <div class="table-view-container">
+          <div class="table-filter-bar">
+            <h3 style="font-size: 16px;">Interactive Map Zones</h3>
+            <button class="btn btn-primary btn-sm" onclick="switchTab('tab-editor')">+ Create Zone in Editor</button>
+          </div>
+
+          <div class="data-table-card">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Color / Shape</th>
+                  <th>Zone Name</th>
+                  <th>Total Stalls</th>
+                  <th>Booked</th>
+                  <th>Available</th>
+                  <th>Public Visibility</th>
+                  <th>Coordinates (X, Y, W, H)</th>
+                  <th style="text-align: right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="zones-table-body">
+                <tr>
+                  <td colspan="8" style="text-align: center; padding: 32px; color: var(--text-muted);">Loading zones...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== 5. AUDIT LOGS TAB ==================== -->
+      <div class="tab-pane" id="tab-audit">
+        <div class="table-view-container">
+          <div class="table-filter-bar">
+            <h3 style="font-size: 16px;">System Activity &amp; Audit Trail</h3>
+            <span class="badge badge-neutral" id="audit-logs-count">0 Records</span>
+          </div>
+
+          <div class="data-table-card">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Admin Actor</th>
+                  <th>Action</th>
+                  <th>Entity Type</th>
+                  <th>Target ID</th>
+                  <th>Details &amp; Change Summary</th>
+                  <th>IP Address</th>
+                </tr>
+              </thead>
+              <tbody id="audit-table-body">
+                <tr>
+                  <td colspan="7" style="text-align: center; padding: 32px; color: var(--text-muted);">Loading audit records...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== 6. SETTINGS TAB ==================== -->
+      <div class="tab-pane" id="tab-settings">
+        <div class="dashboard-grid" style="max-width: 800px;">
+          <!-- Password Change Form -->
+          <div class="content-card">
+            <div class="content-card-header">
+              <h3 style="font-size: 15px;">Change Admin Password</h3>
+            </div>
+            <div class="content-card-body">
+              <form id="change-pwd-form">
+                <div class="form-group">
+                  <label class="form-label">Current Password <span class="required">*</span></label>
+                  <input type="password" id="pwd-current" class="form-input" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">New Password <span class="required">*</span></label>
+                  <input type="password" id="pwd-new" class="form-input" required minlength="6">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Confirm New Password <span class="required">*</span></label>
+                  <input type="password" id="pwd-confirm" class="form-input" required minlength="6">
+                </div>
+                <button type="submit" class="btn btn-primary" id="btn-save-pwd">Update Password</button>
+              </form>
+            </div>
+          </div>
+
+          <!-- System & Security Info -->
+          <div class="content-card">
+            <div class="content-card-header">
+              <h3 style="font-size: 15px;">System Security &amp; Data Integrity</h3>
+            </div>
+            <div class="content-card-body" style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+              <p>🛡️ <strong>Zero Data Leakage:</strong> All public endpoints strictly project only approved public columns at the SQL level. Contact details, payments, and internal notes are never accessible publicly.</p>
+              <p style="margin-top: 8px;">⚡ <strong>Real-time Synchronization:</strong> Dual-channel Server-Sent Events (SSE) automatically sync changes between admin dashboards and the public map viewer.</p>
+              <p style="margin-top: 8px;">💾 <strong>Storage:</strong> Embedded SQLite in WAL mode with transactional foreign key cascades.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: ADD / EDIT STALL ==================== -->
+  <div class="modal-overlay" id="stall-modal">
+    <div class="modal-card" style="max-width: 680px;">
+      <div class="modal-header">
+        <h3 id="stall-modal-title" style="font-size: 17px;">Add New Stall</h3>
+        <button class="modal-close" id="btn-stall-modal-close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <form id="stall-form">
+          <input type="hidden" id="form-stall-id">
+
+          <!-- Card 1: Basic Info -->
+          <div class="form-section-card">
+            <div class="section-badge-title">
+              <span>🏷️</span>
+              <span>General Stall Information</span>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div class="form-group">
+                <label class="form-label">Stall Number <span class="required">*</span></label>
+                <input type="text" id="form-stall-num" class="form-input" placeholder="e.g. A-01, VIP-1" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Assigned Zone <span class="required">*</span></label>
+                <select id="form-stall-zone" class="form-select" required></select>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px;">
+              <div class="form-group">
+                <label class="form-label">Company / Exhibitor Name</label>
+                <input type="text" id="form-stall-company" class="form-input" placeholder="e.g. Quantum Robotics Corp">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Category</label>
+                <input type="text" id="form-stall-category" class="form-input" placeholder="e.g. Robotics &amp; AI">
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: Public Information & Visibility Toggles -->
+          <div class="form-section-card" style="background: #eff6ff; border-color: #bfdbfe;">
+            <div class="section-badge-title" style="color: #1e40af;">
+              <span>🌐</span>
+              <span>Public Directory &amp; Map Visibility</span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Public Description (Displayed in Public Popup)</label>
+              <textarea id="form-stall-public-desc" class="form-textarea" placeholder="Short description for public attendees..."></textarea>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+              <div class="toggle-switch-wrapper">
+                <span style="font-size: 12px; font-weight: 600;">Show Company Name</span>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="form-stall-show-company" checked>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+
+              <div class="toggle-switch-wrapper">
+                <span style="font-size: 12px; font-weight: 600;">Show Category Tag</span>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="form-stall-show-cat" checked>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+
+              <div class="toggle-switch-wrapper">
+                <span style="font-size: 12px; font-weight: 600;">Show Public Description</span>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="form-stall-show-desc" checked>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+
+              <div class="toggle-switch-wrapper">
+                <span style="font-size: 12px; font-weight: 600;">Publish to Public Map</span>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="form-stall-public-vis" checked>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3: Private Administrative Info -->
+          <div class="form-section-card" style="background: #fffbeb; border-color: #fde68a;">
+            <div class="section-badge-title" style="color: #92400e;">
+              <span>🔒</span>
+              <span>Private / Internal Administrative Info (NEVER Exposed Publicly)</span>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div class="form-group">
+                <label class="form-label">Contact Person</label>
+                <input type="text" id="form-stall-contact" class="form-input" placeholder="e.g. John Doe">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Phone Number</label>
+                <input type="tel" id="form-stall-phone" class="form-input" placeholder="e.g. +1 555-0192">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Email Address</label>
+              <input type="email" id="form-stall-email" class="form-input" placeholder="e.g. contact@company.com">
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+              <div class="form-group">
+                <label class="form-label">Booking Status</label>
+                <select id="form-stall-booking-status" class="form-select">
+                  <option value="Available">Available</option>
+                  <option value="Booked">Booked</option>
+                  <option value="Reserved">Reserved</option>
+                  <option value="Blocked">Blocked</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Payment Status</label>
+                <select id="form-stall-payment-status" class="form-select">
+                  <option value="Unpaid">Unpaid</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Paid">Paid</option>
+                  <option value="Partial">Partial</option>
+                  <option value="Refunded">Refunded</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Payment Amount ($)</label>
+                <input type="number" id="form-stall-amount" class="form-input" step="0.01" min="0" placeholder="0.00">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Internal Admin Notes</label>
+              <textarea id="form-stall-notes" class="form-textarea" placeholder="Power needs, special booth requests, contract notes..."></textarea>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="btn-stall-cancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="btn-stall-save">Save Stall Record</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: CSV BULK IMPORT ==================== -->
+  <div class="modal-overlay" id="csv-import-modal">
+    <div class="modal-card" style="max-width: 650px;">
+      <div class="modal-header">
+        <h3 style="font-size: 17px;">Bulk CSV Stall Import</h3>
+        <button class="modal-close" id="btn-csv-close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Target Zone for Unassigned Stalls</label>
+          <select id="csv-default-zone" class="form-select"></select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Paste CSV Text or Upload .CSV File</label>
+          <textarea id="csv-raw-input" class="form-textarea" style="min-height: 120px; font-family: monospace; font-size: 12px;" placeholder="stall_number,company,category,contact,phone,email,payment_status,amount&#10;A-10,NextGen AI,Robotics,Alice,555-0199,alice@nextgen.ai,Paid,4500"></textarea>
+        </div>
+
+        <div style="margin-top: 10px;">
+          <input type="file" id="csv-file-input" accept=".csv,text/csv" class="form-input" style="font-size: 12px;">
+        </div>
+
+        <div id="csv-import-results" style="margin-top: 16px; display: none;"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-csv-cancel">Cancel</button>
+        <button class="btn btn-primary" id="btn-csv-execute">Process &amp; Import Records</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: MAP UPLOAD ==================== -->
+  <div class="modal-overlay" id="upload-map-modal">
+    <div class="modal-card" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3 style="font-size: 17px;">Upload Event Floor Plan</h3>
+        <button class="modal-close" id="btn-map-upload-close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <form id="map-upload-form">
+          <div class="form-group">
+            <label class="form-label">Map Layout Name <span class="required">*</span></label>
+            <input type="text" id="map-upload-name" class="form-input" placeholder="e.g. Main Hall - Level 1" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Select Image or SVG Floor Plan File <span class="required">*</span></label>
+            <input type="file" id="map-upload-file" class="form-input" accept=".svg,.png,.jpg,.jpeg,.webp" required>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Supported: SVG (recommended for crisp zoom), PNG, JPG, WebP.</div>
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-map-upload-cancel">Cancel</button>
+        <button class="btn btn-primary" id="btn-map-upload-submit">Upload &amp; Activate Map</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: PUBLIC PREVIEW ==================== -->
+  <div class="modal-overlay" id="preview-modal">
+    <div class="modal-card" style="max-width: 90vw; height: 90vh;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 18px;">👁️</span>
+          <h3 style="font-size: 16px;">Live Public Map Preview (Exact Public Visitor Experience)</h3>
+        </div>
+        <button class="modal-close" id="btn-preview-close">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 0; height: 100%;">
+        <iframe id="preview-iframe" src="/map" style="width: 100%; height: 100%; border: none;"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="/js/admin.js"></script>
+</body>
+</html>

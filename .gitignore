@@ -1,0 +1,11 @@
+# Node
+node_modules/
+npm-debug.log*
+
+# Database & SQLite files
+data/*.db-shm
+data/*.db-wal
+
+# OS
+.DS_Store
+Thumbs.db
