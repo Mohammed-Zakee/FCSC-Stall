@@ -5,6 +5,7 @@
   // Global State
   let isAdminAuthenticated = false;
   let isAdminModeActive = false;
+  let isDropPinMode = false;
   let currentMap = null;
   let allPins = []; // Zones/Pins
   let currentPinStalls = [];
@@ -151,14 +152,14 @@
 
     if (isAdminModeActive) {
       adminModeBar.classList.add('active');
-      adminModeBtnIcon.textContent = '🛠️';
+      adminModeBtnIcon.textContent = '👑';
       adminModeBtnText.textContent = 'Admin Mode: ON';
       btnToggleAdminMode.className = 'btn btn-primary btn-sm';
-      if (tipText) tipText.textContent = 'Admin Mode: Drag pins to reposition or click any pin to manage its stalls';
+      if (tipText) tipText.textContent = 'Admin Mode: Click "Drop Pin Button" or drag existing pins to reposition';
     } else {
       adminModeBar.classList.remove('active');
       adminModeBtnIcon.textContent = '🔒';
-      adminModeBtnText.textContent = 'Admin Mode';
+      adminModeBtnText.textContent = isAdminAuthenticated ? 'Admin Mode (Off)' : 'Admin Mode';
       btnToggleAdminMode.className = 'btn btn-secondary btn-sm';
       if (tipText) tipText.textContent = 'Click any pin button to explore stalls under that location';
     }
@@ -168,11 +169,9 @@
 
   btnToggleAdminMode.addEventListener('click', () => {
     if (!isAdminAuthenticated) {
-      // Open Login Modal
       loginErrorBanner.style.display = 'none';
       adminLoginModal.classList.add('active');
     } else {
-      // Toggle between Admin and Visitor View
       setAdminMode(!isAdminModeActive);
     }
   });
@@ -241,16 +240,15 @@
   }
 
   function fitToScreen() {
-    if (!mapImage.naturalWidth) return;
-    const vpW = viewport.clientWidth;
-    const vpH = viewport.clientHeight;
-    const imgW = mapImage.naturalWidth || 1600;
-    const imgH = mapImage.naturalHeight || 1000;
+    const vpW = viewport.clientWidth || window.innerWidth;
+    const vpH = viewport.clientHeight || (window.innerHeight - 110);
+    const imgW = mapImage.clientWidth || mapImage.naturalWidth || 1600;
+    const imgH = mapImage.clientHeight || mapImage.naturalHeight || 1000;
 
     const sX = (vpW - 60) / imgW;
     const sY = (vpH - 60) / imgH;
     scale = Math.min(sX, sY, 1.2);
-    scale = Math.max(scale, 0.3);
+    scale = Math.max(scale, 0.35);
 
     panX = (vpW - imgW * scale) / 2;
     panY = (vpH - imgH * scale) / 2;
@@ -258,8 +256,8 @@
   }
 
   function panToCoords(x, y) {
-    const vpW = viewport.clientWidth;
-    const vpH = viewport.clientHeight;
+    const vpW = viewport.clientWidth || window.innerWidth;
+    const vpH = viewport.clientHeight || (window.innerHeight - 110);
     const imgW = mapImage.clientWidth || 1600;
     const imgH = mapImage.clientHeight || 1000;
 
@@ -355,9 +353,11 @@
         }
       }
 
-      mapImage.onload = () => {
+      if (mapImage.complete) {
         fitToScreen();
-      };
+      } else {
+        mapImage.onload = () => fitToScreen();
+      }
 
       await loadPins();
     } catch (err) {
@@ -424,15 +424,15 @@
 
   // Drag Pin Handler (Percentage Position)
   function handlePinDrag(e) {
-    const mapW = mapImage.clientWidth;
-    const mapH = mapImage.clientHeight;
+    const mapW = mapImage.clientWidth || 1600;
+    const mapH = mapImage.clientHeight || 1000;
     if (!mapW || !mapH) return;
 
     const deltaPxX = (e.clientX - pinDragStartX) / scale;
     const deltaPxY = (e.clientY - pinDragStartY) / scale;
 
     const deltaPctX = (deltaPxX / mapW) * 100;
-    const deltaPctY = (deltaPxY / mapH) * 100;
+    const deltaPctY = (deltaPctY / mapH) * 100;
 
     let newX = Math.max(1, Math.min(99, pinInitialCoords.x + deltaPctX));
     let newY = Math.max(1, Math.min(99, pinInitialCoords.y + deltaPctY));
@@ -476,8 +476,8 @@
     const payload = {
       name: defaultName,
       shape: 'rect',
-      x: 45.0,
-      y: 45.0,
+      x: 48.0,
+      y: 48.0,
       width: 15.0,
       height: 15.0,
       color: '#2563eb',
@@ -567,7 +567,6 @@
       const stallId = s.id;
 
       if (isAdminModeActive) {
-        // Admin Card with Edit / Delete / Visibility controls
         return `
           <div class="pin-stall-card">
             <div class="stall-card-header">
@@ -589,7 +588,6 @@
           </div>
         `;
       } else {
-        // Public Card (Strict Zero-Leakage)
         return `
           <div class="pin-stall-card">
             <div class="stall-card-header">
