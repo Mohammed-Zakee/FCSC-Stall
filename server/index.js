@@ -62,14 +62,20 @@ function parseJsonBody(req) {
 
 // Serve static files safely
 function serveStaticFile(res, filePath, customHeaders = {}) {
-  fs.stat(filePath, (err, stats) => {
+  const normalized = path.normalize(filePath);
+  if (!normalized.startsWith(PUBLIC_DIR) && !normalized.startsWith(UPLOADS_DIR)) {
+    res.writeHead(403, { 'Content-Type': 'text/html' });
+    return res.end('<h1>403 Forbidden</h1>');
+  }
+
+  fs.stat(normalized, (err, stats) => {
     if (err || !stats.isFile()) {
       res.writeHead(404, { 'Content-Type': 'text/html' });
       res.end('<h1>404 Not Found</h1>');
       return;
     }
 
-    const ext = path.extname(filePath).toLowerCase();
+    const ext = path.extname(normalized).toLowerCase();
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
 
     res.writeHead(200, {
@@ -79,7 +85,7 @@ function serveStaticFile(res, filePath, customHeaders = {}) {
       ...customHeaders
     });
 
-    const stream = fs.createReadStream(filePath);
+    const stream = fs.createReadStream(normalized);
     stream.pipe(res);
   });
 }

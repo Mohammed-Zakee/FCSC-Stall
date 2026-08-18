@@ -67,7 +67,11 @@ class RealtimeHub {
       client.res.write(`event: ${event}\n`);
       client.res.write(`data: ${JSON.stringify(data)}\n\n`);
     } catch (err) {
-      // Client likely dropped connection
+      if (client.isAdmin) {
+        this.adminClients.delete(client);
+      } else {
+        this.publicClients.delete(client);
+      }
     }
   }
 
@@ -75,10 +79,18 @@ class RealtimeHub {
   heartbeat() {
     const payload = `: ping\n\n`;
     for (const client of this.publicClients) {
-      try { client.res.write(payload); } catch (e) {}
+      try {
+        client.res.write(payload);
+      } catch (e) {
+        this.publicClients.delete(client);
+      }
     }
     for (const client of this.adminClients) {
-      try { client.res.write(payload); } catch (e) {}
+      try {
+        client.res.write(payload);
+      } catch (e) {
+        this.adminClients.delete(client);
+      }
     }
   }
 
