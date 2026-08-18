@@ -3,56 +3,65 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Interactive Event Stall Map</title>
+  <title>Event Floor Plan &amp; Stall Map</title>
   <link rel="stylesheet" href="/css/common.css">
   <link rel="stylesheet" href="/css/public.css">
 </head>
 <body>
-  <!-- Header Bar -->
+  <!-- Clean White Header -->
   <header class="public-header">
     <div class="brand-section">
       <div class="brand-logo">📍</div>
       <div>
-        <h1 class="brand-title" id="event-title">Expo Convention Event Map</h1>
-        <div class="brand-subtitle">Interactive Stall Plan &amp; Directory</div>
+        <h1 class="brand-title" id="event-title">Event Stall Map</h1>
+        <div class="brand-subtitle">Interactive Floor Plan</div>
       </div>
     </div>
 
-    <!-- Category Filters -->
-    <div class="category-bar" id="category-bar">
-      <button class="category-chip active" data-category="ALL">All Stalls</button>
-      <button class="category-chip" data-category="Robotics & AI">🤖 Robotics &amp; AI</button>
-      <button class="category-chip" data-category="Cloud & DevOps">☁️ Cloud</button>
-      <button class="category-chip" data-category="Food & Dining">☕ Food &amp; Beverage</button>
-      <button class="category-chip" data-category="Sponsors">⭐ Sponsors</button>
-    </div>
-
-    <!-- Actions & Live Status -->
+    <!-- Header Actions -->
     <div class="header-actions">
       <!-- Search Input -->
       <div class="search-box">
         <span class="search-icon">🔍</span>
-        <input type="text" id="public-search-input" placeholder="Search stall, company, category..." autocomplete="off">
+        <input type="text" id="public-search-input" placeholder="Search stall, company, pin..." autocomplete="off">
       </div>
 
       <!-- Realtime Live Badge -->
       <div class="status-indicator" id="realtime-status-badge">
-        <span class="status-dot connecting" id="status-dot"></span>
-        <span id="status-text">Connecting...</span>
+        <span class="status-dot online" id="status-dot"></span>
+        <span id="status-text">Live</span>
       </div>
 
-      <!-- Admin Login Link -->
-      <a href="/admin" class="btn btn-secondary btn-sm" title="Admin Portal">🔒 Admin</a>
+      <!-- Direct Admin Mode Toggle Button -->
+      <button class="btn btn-secondary btn-sm" id="btn-toggle-admin-mode" title="Toggle Admin Controls">
+        <span id="admin-mode-btn-icon">🔒</span>
+        <span id="admin-mode-btn-text">Admin Mode</span>
+      </button>
     </div>
   </header>
 
-  <!-- Interactive Map Viewport -->
+  <!-- Direct On-Page Admin Toolbar (Visible when Admin Mode is ON) -->
+  <div class="admin-mode-bar" id="admin-mode-bar">
+    <div class="admin-toolbar-left">
+      <span class="admin-badge-indicator">🛠️ Admin Edit Mode</span>
+      <button class="btn btn-primary btn-sm" id="btn-drop-pin">📍 + Drop Pin Button</button>
+      <button class="btn btn-secondary btn-sm" id="btn-open-upload-map">📁 Upload / Replace Map</button>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <button class="btn btn-secondary btn-sm" id="btn-toggle-visitor-view">👁️ View as Visitor</button>
+      <button class="btn btn-secondary btn-sm" id="btn-admin-logout" title="Log Out">Sign Out</button>
+    </div>
+  </div>
+
+  <!-- Clean White Map Viewport -->
   <main class="map-viewport-container" id="map-viewport">
     <div class="map-stage" id="map-stage">
       <div class="map-image-wrapper" id="map-wrapper">
-        <img id="map-image" src="/assets/default-floorplan.svg" alt="Event Floor Plan">
-        <!-- Interactive Zones Layer -->
-        <div class="zones-overlay-layer" id="zones-layer"></div>
+        <!-- Base Map Image -->
+        <img id="map-image" src="/assets/default-floorplan.svg" alt="Floor Plan">
+        <!-- Interactive Pins / Buttons Layer -->
+        <div class="pins-overlay-layer" id="pins-layer"></div>
       </div>
     </div>
 
@@ -61,36 +70,66 @@
       <button class="map-control-btn" id="btn-zoom-in" title="Zoom In">+</button>
       <button class="map-control-btn" id="btn-zoom-out" title="Zoom Out">−</button>
       <button class="map-control-btn" id="btn-fit-screen" title="Fit to Screen" style="font-size: 14px;">⛶</button>
-      <button class="map-control-btn" id="btn-reset-zoom" title="Reset View" style="font-size: 13px;">1:1</button>
+      <button class="map-control-btn" id="btn-reset-zoom" title="Reset View" style="font-size: 12px;">1:1</button>
     </div>
 
-    <!-- Floating Helper Pill -->
-    <div class="map-info-pill">
+    <!-- Helper Tip -->
+    <div class="map-info-pill" id="map-tip-pill">
       <span>💡</span>
-      <span>Click any highlighted zone on the map to explore stalls &amp; exhibitors</span>
+      <span id="tip-text">Click any pin button to explore stalls under that location</span>
     </div>
   </main>
 
-  <!-- Public Zone Details Modal -->
-  <div class="modal-overlay" id="zone-modal">
-    <div class="modal-card">
+  <!-- ==================== PIN & STALLS DRAWER / MODAL ==================== -->
+  <div class="modal-overlay" id="pin-modal">
+    <div class="modal-card" style="max-width: 620px;">
       <div class="modal-header">
         <div style="display: flex; align-items: center; gap: 10px;">
-          <div id="modal-zone-color-tag" style="width: 12px; height: 12px; border-radius: 50%; background: #3b82f6;"></div>
+          <div id="modal-pin-color-tag" style="width: 14px; height: 14px; border-radius: 50%; background: var(--primary);"></div>
           <div>
-            <h3 id="modal-zone-title" style="font-size: 17px; margin-bottom: 2px;">Zone Details</h3>
-            <span class="badge badge-primary" id="modal-zone-stall-count">0 Stalls</span>
+            <h3 id="modal-pin-title" style="font-size: 16px;">Pin Details</h3>
+            <span class="badge badge-primary" id="modal-pin-count">0 Stalls</span>
           </div>
         </div>
-        <button class="modal-close" id="modal-zone-close">&times;</button>
+        <button class="modal-close" id="btn-pin-modal-close">&times;</button>
       </div>
 
       <div class="modal-body">
-        <p id="modal-zone-desc" style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;"></p>
+        <!-- Admin Settings for this Pin (Visible only in Admin Mode) -->
+        <div id="admin-pin-settings-box" style="display: none; background: #f8fafc; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px; margin-bottom: 16px;">
+          <div style="font-size: 11px; font-weight: 700; color: var(--primary); text-transform: uppercase; margin-bottom: 8px;">📍 Pin Settings</div>
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px; margin-bottom: 8px;">
+            <div>
+              <label class="form-label" style="font-size: 11px;">Pin Label / Button Name</label>
+              <input type="text" id="admin-pin-name-input" class="form-input">
+            </div>
+            <div>
+              <label class="form-label" style="font-size: 11px;">Pin Color</label>
+              <input type="color" id="admin-pin-color-input" style="width: 100%; height: 34px; padding: 2px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer;">
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom: 8px;">
+            <label class="form-label" style="font-size: 11px;">Location Description</label>
+            <input type="text" id="admin-pin-desc-input" class="form-input" placeholder="e.g. Near West Hall Entrance">
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+            <button type="button" class="btn btn-primary btn-sm" id="btn-save-pin-settings">Save Pin Details</button>
+            <button type="button" class="btn btn-danger btn-sm" id="btn-delete-pin">🗑️ Delete Pin</button>
+          </div>
+        </div>
 
-        <!-- Search inside zone -->
-        <div style="margin-bottom: 14px;">
-          <input type="text" id="modal-zone-search" class="form-input" placeholder="Filter stalls in this zone...">
+        <!-- Pin Description for Public -->
+        <p id="modal-pin-desc" style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;"></p>
+
+        <!-- Admin Add Stall Button Under this Pin -->
+        <div id="admin-add-stall-row" style="display: none; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+          <span style="font-size: 13px; font-weight: 700;">Stalls Under This Pin</span>
+          <button class="btn btn-primary btn-sm" id="btn-add-stall-under-pin">+ Add Stall</button>
+        </div>
+
+        <!-- Search inside pin -->
+        <div id="modal-search-row" style="margin-bottom: 12px;">
+          <input type="text" id="modal-pin-search" class="form-input" placeholder="Filter stalls under this pin...">
         </div>
 
         <!-- Stalls List Container -->
@@ -100,7 +139,175 @@
       </div>
 
       <div class="modal-footer">
-        <button class="btn btn-secondary btn-sm" id="btn-modal-close-footer">Close</button>
+        <button class="btn btn-secondary btn-sm" id="btn-pin-modal-footer-close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: ADD / EDIT STALL ==================== -->
+  <div class="modal-overlay" id="stall-form-modal">
+    <div class="modal-card" style="max-width: 580px;">
+      <div class="modal-header">
+        <h3 id="stall-form-title" style="font-size: 16px;">Add Stall</h3>
+        <button class="modal-close" id="btn-stall-form-close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <form id="stall-editor-form">
+          <input type="hidden" id="stall-id-input">
+          <input type="hidden" id="stall-pin-id-input">
+
+          <!-- Card: Public Information -->
+          <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px; margin-bottom: 14px;">
+            <div style="font-size: 11px; font-weight: 700; color: var(--primary); text-transform: uppercase; margin-bottom: 10px;">🌐 Public Visitor Information</div>
+
+            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 10px;">
+              <div class="form-group">
+                <label class="form-label">Stall Number <span class="required">*</span></label>
+                <input type="text" id="form-stall-number" class="form-input" placeholder="01, A-02" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Company / Exhibitor Name</label>
+                <input type="text" id="form-stall-company" class="form-input" placeholder="e.g. Acme Corp">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Category</label>
+              <input type="text" id="form-stall-category" class="form-input" placeholder="e.g. Food, Robotics, Sponsors">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Public Description</label>
+              <textarea id="form-stall-public-desc" class="form-textarea" placeholder="Short description visible to visitors..."></textarea>
+            </div>
+
+            <div class="toggle-switch-wrapper">
+              <div>
+                <div style="font-weight: 600; font-size: 12px;">Publish on Map</div>
+                <div style="font-size: 10px; color: var(--text-muted);">Make visible to public attendees</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="form-stall-public-vis" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Card: Private Admin Info -->
+          <div style="background: #fffbeb; border: 1px solid var(--warning-border); border-radius: var(--radius-md); padding: 14px;">
+            <div style="font-size: 11px; font-weight: 700; color: #92400e; text-transform: uppercase; margin-bottom: 10px;">🔒 Private / Admin Only (Never Public)</div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div class="form-group">
+                <label class="form-label">Contact Person</label>
+                <input type="text" id="form-stall-contact" class="form-input" placeholder="John Doe">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Phone Number</label>
+                <input type="tel" id="form-stall-phone" class="form-input" placeholder="0771234567">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Email Address</label>
+              <input type="email" id="form-stall-email" class="form-input" placeholder="contact@company.com">
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div class="form-group">
+                <label class="form-label">Booking Status</label>
+                <select id="form-stall-booking-status" class="form-select">
+                  <option value="Available">Available</option>
+                  <option value="Booked">Booked</option>
+                  <option value="Reserved">Reserved</option>
+                  <option value="Blocked">Blocked</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Payment Status</label>
+                <select id="form-stall-payment-status" class="form-select">
+                  <option value="Unpaid">Unpaid</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Paid">Paid</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Internal Notes</label>
+              <textarea id="form-stall-notes" class="form-textarea" placeholder="Internal requirements, notes..."></textarea>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-stall-form-cancel">Cancel</button>
+        <button type="button" class="btn btn-primary btn-sm" id="btn-stall-form-save">Save Stall</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: UPLOAD MAP ==================== -->
+  <div class="modal-overlay" id="upload-map-modal">
+    <div class="modal-card" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3 style="font-size: 16px;">Upload Event Floor Plan</h3>
+        <button class="modal-close" id="btn-upload-map-close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Map Title <span class="required">*</span></label>
+          <input type="text" id="upload-map-name-input" class="form-input" placeholder="e.g. Grand Exhibition Hall Level 1" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Select Image or SVG File <span class="required">*</span></label>
+          <input type="file" id="upload-map-file-input" class="form-input" accept=".svg,.png,.jpg,.jpeg,.webp" required>
+          <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Supports SVG, PNG, JPG, WebP.</div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-sm" id="btn-upload-map-cancel">Cancel</button>
+        <button class="btn btn-primary btn-sm" id="btn-upload-map-submit">Upload &amp; Set as Map</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: ADMIN LOGIN POPUP ==================== -->
+  <div class="modal-overlay" id="admin-login-modal">
+    <div class="modal-card" style="max-width: 400px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span>🔒</span>
+          <h3 style="font-size: 16px;">Administrator Sign In</h3>
+        </div>
+        <button class="modal-close" id="btn-login-modal-close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div id="login-error-banner" style="display: none; background: var(--danger-light); color: #991b1b; padding: 8px 12px; border-radius: var(--radius-sm); font-size: 12px; margin-bottom: 12px;"></div>
+
+        <!-- Quick Demo Fill -->
+        <div style="background: #f8fafc; border: 1px dashed var(--border); border-radius: var(--radius-sm); padding: 8px 10px; font-size: 11px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <span>admin@event.com / Admin@123456</span>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-quick-fill-login" style="padding: 2px 6px; font-size: 10px;">Fill</button>
+        </div>
+
+        <form id="inline-login-form">
+          <div class="form-group">
+            <label class="form-label">Email Address</label>
+            <input type="email" id="login-email" class="form-input" placeholder="admin@event.com" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <input type="password" id="login-password" class="form-input" placeholder="••••••••" required>
+          </div>
+          <button type="submit" class="btn btn-primary" id="btn-login-submit" style="width: 100%; margin-top: 4px;">Unlock Admin Mode</button>
+        </form>
       </div>
     </div>
   </div>
@@ -108,7 +315,7 @@
   <!-- Toast Container -->
   <div id="toast-container"></div>
 
-  <!-- Scripts -->
+  <!-- Client Script -->
   <script src="/js/public-map.js"></script>
 </body>
 </html>
